@@ -9,7 +9,7 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: เปลี่ยนค่า DEFAULT_APPS_SCRIPT_URL เป็นลิงก์ล่าสุดที่ผู้ใช้งานระบุ
+ * - อัปเดต: เพิ่มปุ่ม Refresh ข้อมูลใน Header
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -415,6 +415,16 @@ const App = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* ปุ่มรีเฟรชข้อมูลใหม่ */}
+            <button 
+              onClick={() => fetchFromSheet(sheetUrl)} 
+              disabled={loading}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-zinc-800 border-slate-700 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 shadow-indigo-900/10'}`}
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              {loading ? 'กำลังดึงข้อมูล...' : 'รีเฟรชข้อมูล'}
+            </button>
+
             <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
             <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>
             <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-800 rounded-2xl hover:text-indigo-400 text-slate-400 transition-colors border border-slate-700"><User size={20} /></button>
