@@ -9,7 +9,7 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: แก้ไข URL และระบบการส่งค่า AC/BC ไปยัง Google Sheets
+ * - อัปเดต: เปลี่ยนค่า DEFAULT_APPS_SCRIPT_URL เป็นลิงก์ล่าสุดที่ผู้ใช้งานระบุ
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -201,23 +201,23 @@ const App = () => {
   const handleUpdateCase = async () => {
     if (!appsScriptUrl) return alert("กรุณาตั้งค่า Apps Script URL");
     
-    // Validate: If it was "ยังไม่ได้ตรวจ", type must be selected
     if (editingCase.type === "ยังไม่ได้ตรวจ") {
       alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก");
       return;
     }
 
     setIsSaving(true);
+    const backupData = [...data];
+
     try {
       const updateData = {
         rowIndex: editingCase.rowIndex, 
         result: editingCase.result,
-        type: editingCase.type, // Send the AC/BC status
+        type: editingCase.type,
         evaluations: editingCase.evaluations.map(e => e.value), 
         comment: editingCase.comment
       };
       
-      // POST to Google Apps Script
       await fetch(appsScriptUrl, { 
         method: 'POST', 
         mode: 'no-cors', 
@@ -226,13 +226,23 @@ const App = () => {
         body: JSON.stringify(updateData) 
       });
       
+      // INSTANT UI UPDATE
+      setData(prevData => prevData.map(item => {
+        if (item.id === editingCase.id) {
+          return { ...editingCase };
+        }
+        return item;
+      }));
+
       setTimeout(() => { 
         setIsSaving(false); 
         setEditingCase(null); 
         fetchFromSheet(sheetUrl); 
-      }, 2000);
+      }, 1000);
+
     } catch (err) { 
-      alert(err.message); 
+      alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
+      setData(backupData);
       setIsSaving(false); 
     }
   };
