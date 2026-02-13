@@ -4,11 +4,12 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - INTAGE BLACK & RED Edition
  * ระบบวิเคราะห์ผลการตรวจ QC งานสัมภาษณ์ (CATI) พร้อมระบบ Auto-Refresh ทุก 5 นาที
+ * เพิ่มการแสดงผลการประเมิน 13 หัวข้อ (P:AB)
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -65,6 +66,7 @@ const App = () => {
   const [inputPass, setInputPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [data, setData] = useState([]);
+  const [evalHeaders, setEvalHeaders] = useState([]); // เก็บหัวข้อการประเมิน 13 ข้อ
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sheetUrl, setSheetUrl] = useState(localStorage.getItem('qc_sheet_url') || DEFAULT_SHEET_URL);
@@ -80,6 +82,7 @@ const App = () => {
   const [showSync, setShowSync] = useState(!localStorage.getItem('qc_sheet_url') && !DEFAULT_SHEET_URL);
   
   const [activeCell, setActiveCell] = useState({ agent: null, resultType: null });
+  const [expandedCaseId, setExpandedCaseId] = useState(null); // ID ของเคสที่คลิกดูรายละเอียด
 
   useEffect(() => {
     if (!document.getElementById('thai-font-link')) {
@@ -116,10 +119,7 @@ const App = () => {
     let intervalId;
     if (isAuthenticated && sheetUrl && sheetUrl.includes('http')) {
       fetchFromSheet(sheetUrl);
-      
-      // Set up interval to refresh every 5 minutes (300,000 ms)
       intervalId = setInterval(() => {
-        console.log("Auto-refreshing data from Google Sheets...");
         fetchFromSheet(sheetUrl);
       }, 300000);
     }
@@ -149,7 +149,6 @@ const App = () => {
     setLoading(true);
     setError(null);
     try {
-      // Append timestamp to URL to bypass potential browser cache
       const fetchUrl = `${finalUrl}&t=${new Date().getTime()}`;
       const response = await fetch(fetchUrl);
       if (!response.ok) throw new Error("ไม่สามารถเข้าถึงไฟล์ได้");
@@ -160,6 +159,11 @@ const App = () => {
       if (headerIdx === -1) throw new Error("ไม่พบคอลัมน์ข้อมูลที่กำหนด");
 
       const headers = allRows[headerIdx].map(h => h.trim());
+      
+      // เก็บหัวข้อการประเมิน 13 ข้อ (P:AB คือ index 15 ถึง 27)
+      const evaluationsList = headers.slice(15, 28);
+      setEvalHeaders(evaluationsList);
+
       const getIdx = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
       const idx = {
         year: getIdx("Year"), month: getIdx("เดือน"), date: getIdx("วันที่สัมภาษณ์"), touchpoint: getIdx("TOUCH_POINT"), type: getIdx("AC / BC"), sup: getIdx("Supervisor"), agent: getIdx("Interviewer"),
@@ -185,8 +189,15 @@ const App = () => {
           const agentName = (idx.agentName !== -1) ? row[idx.agentName]?.toString().trim() : '';
           let displayAgent = agentName && agentName !== agentId ? `${agentId} : ${agentName}` : agentId;
           
+          // ดึงคะแนน 13 หัวข้อ
+          const evaluations = evaluationsList.map((header, i) => ({
+            label: header,
+            value: row[15 + i] || '-'
+          }));
+
           return {
-            id: index, year: row[idx.year] || 'N/A', month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', touchpoint: row[idx.touchpoint] || 'N/A', type: row[idx.type] || 'N/A', supervisor: row[idx.sup] || 'N/A', agent: displayAgent, audio: row[idx.audio] || '', result: cleanResult, comment: row[idx.comment] || ''
+            id: index, year: row[idx.year] || 'N/A', month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', touchpoint: row[idx.touchpoint] || 'N/A', type: row[idx.type] || 'N/A', supervisor: row[idx.sup] || 'N/A', agent: displayAgent, audio: row[idx.audio] || '', result: cleanResult, comment: row[idx.comment] || '',
+            evaluations: evaluations
           };
         });
       setData(parsedData);
@@ -542,6 +553,7 @@ const App = () => {
                         <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-2 italic">
                             <MessageSquare size={16} className="text-red-600" /> ข้อมูลรายเคสแบบละเอียด
                         </h3>
+                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest italic ml-6">คลิกที่แถวเพื่อดูผลการประเมิน 13 หัวข้อ</p>
                         {activeCell.agent && (
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-lg shadow-lg shadow-red-900/30 uppercase italic tracking-tighter animate-pulse">
@@ -556,7 +568,7 @@ const App = () => {
                         <input type="text" placeholder="ค้นหาพนักงาน หรือ คอมเมนต์..." className="w-full pl-12 pr-6 py-4 bg-zinc-800/50 border border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-red-600 text-white placeholder-zinc-500 transition-all shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
                     </div>
                 </div>
-                <div className="overflow-auto max-h-[600px] custom-scrollbar">
+                <div className="overflow-auto max-h-[800px] custom-scrollbar">
                     <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
                     <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-zinc-800 font-black text-white uppercase tracking-widest">
                         <tr>
@@ -567,36 +579,80 @@ const App = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800/30">
-                        {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item, idx) => (
-                        <tr key={idx} className="hover:bg-zinc-800/40 transition-all group">
-                            <td className="px-8 py-6 border-r border-zinc-800/20">
-                                <div className="font-black text-white">{item.date}</div>
-                                <div className="text-[9px] font-black text-red-600 uppercase mt-1 tracking-tighter shadow-red-900/10 italic">{item.type} &bull; SUP: {item.supervisor}</div>
-                            </td>
-                            <td className="px-8 py-6 border-r border-zinc-800/20">
-                                <div className="font-black text-white text-sm group-hover:text-red-500 transition-colors">{item.agent}</div>
-                                <div className="text-[9px] text-zinc-300 font-bold uppercase tracking-widest mt-0.5 italic opacity-80">{item.touchpoint}</div>
-                            </td>
-                            <td className="px-4 py-6 text-center border-r border-zinc-800/20">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${COLORS[item.result]}10`, color: COLORS[item.result], borderColor: `${COLORS[item.result]}25` }}>
-                                    <div className="w-1 h-1 rounded-full" style={{backgroundColor: COLORS[item.result]}}></div>
-                                    {item.result}
-                                </span>
-                            </td>
-                            <td className="px-8 py-6">
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-zinc-300 font-semibold italic max-w-sm leading-relaxed group-hover:text-white transition-colors">
-                                        {item.comment ? `"${item.comment}"` : '-'}
-                                    </p>
-                                    {item.audio && item.audio.includes('http') && (
-                                    <a href={item.audio} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-red-500 hover:text-red-400 font-black text-[10px] uppercase transition-all hover:translate-x-1">
-                                        <PlayCircle size={14} /> Listen Recording
-                                    </a>
+                        {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item, idx) => {
+                          const isExpanded = expandedCaseId === item.id;
+                          return (
+                            <React.Fragment key={item.id}>
+                              <tr 
+                                onClick={() => setExpandedCaseId(isExpanded ? null : item.id)}
+                                className={`transition-all group cursor-pointer ${isExpanded ? 'bg-zinc-800/80 shadow-inner' : 'hover:bg-zinc-800/40'}`}
+                              >
+                                  <td className="px-8 py-6 border-r border-zinc-800/20">
+                                      <div className="font-black text-white">{item.date}</div>
+                                      <div className="text-[9px] font-black text-red-600 uppercase mt-1 tracking-tighter shadow-red-900/10 italic">{item.type} &bull; SUP: {item.supervisor}</div>
+                                  </td>
+                                  <td className="px-8 py-6 border-r border-zinc-800/20">
+                                      <div className="font-black text-white text-sm group-hover:text-red-500 transition-colors flex items-center gap-2">
+                                        {item.agent}
+                                        {isExpanded ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-700" />}
+                                      </div>
+                                      <div className="text-[9px] text-zinc-300 font-bold uppercase tracking-widest mt-0.5 italic opacity-80">{item.touchpoint}</div>
+                                  </td>
+                                  <td className="px-4 py-6 text-center border-r border-zinc-800/20">
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${COLORS[item.result]}10`, color: COLORS[item.result], borderColor: `${COLORS[item.result]}25` }}>
+                                          <div className="w-1 h-1 rounded-full" style={{backgroundColor: COLORS[item.result]}}></div>
+                                          {item.result}
+                                      </span>
+                                  </td>
+                                  <td className="px-8 py-6">
+                                      <div className="flex flex-col gap-2">
+                                          <p className="text-zinc-300 font-semibold italic max-w-sm leading-relaxed group-hover:text-white transition-colors">
+                                              {item.comment ? `"${item.comment}"` : '-'}
+                                          </p>
+                                          {item.audio && item.audio.includes('http') && (
+                                          <a href={item.audio} target="_blank" rel="noopener noreferrer" onClick={(e)=>e.stopPropagation()} className="flex items-center gap-1.5 text-red-500 hover:text-red-400 font-black text-[10px] uppercase transition-all hover:translate-x-1">
+                                              <PlayCircle size={14} /> Listen Recording
+                                          </a>
+                                          )}
+                                      </div>
+                                  </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className="bg-zinc-950/40 animate-in slide-in-from-top-2 duration-300">
+                                  <td colSpan={4} className="p-8 border-b border-zinc-800">
+                                    <div className="flex items-center gap-4 mb-6">
+                                      <div className="p-2 bg-red-600/10 rounded-lg text-red-500"><Award size={20} /></div>
+                                      <div>
+                                        <h4 className="font-black text-white uppercase italic tracking-widest text-sm">รายละเอียดการประเมิน 13 หัวข้อ</h4>
+                                        <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Detailed Quality Assessment (P:AB Columns)</p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                      {item.evaluations.map((evalItem, eIdx) => (
+                                        <div key={eIdx} className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-2xl hover:border-red-600/30 transition-colors group/item">
+                                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter mb-2 line-clamp-1 group-hover/item:text-zinc-300 transition-colors" title={evalItem.label}>
+                                            {evalItem.label}
+                                          </p>
+                                          <div className={`text-sm font-black italic tracking-widest ${evalItem.value === '1' || evalItem.value === '100' ? 'text-emerald-500' : evalItem.value === '0' ? 'text-red-500' : 'text-zinc-200'}`}>
+                                            {evalItem.value}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {item.comment && (
+                                      <div className="mt-6 p-4 bg-zinc-800/30 rounded-2xl border border-zinc-800/50 border-l-4 border-l-red-600">
+                                        <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1 italic">QC Full Comment</p>
+                                        <p className="text-sm text-zinc-100 font-medium italic">"{item.comment}"</p>
+                                      </div>
                                     )}
-                                </div>
-                            </td>
-                        </tr>
-                        )) : (
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        }) : (
                         <tr><td colSpan={4} className="px-8 py-24 text-center text-white font-black uppercase italic tracking-widest text-lg opacity-20">No Matching Analysis Data</td></tr>
                         )}
                     </tbody>
