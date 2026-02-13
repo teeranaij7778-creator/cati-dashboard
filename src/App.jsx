@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard
@@ -67,9 +67,17 @@ const App = () => {
   const [error, setError] = useState(null);
   const [sheetUrl, setSheetUrl] = useState(localStorage.getItem('qc_sheet_url') || DEFAULT_SHEET_URL);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterResult, setFilterResult] = useState('All');
-  const [filterACBC, setFilterACBC] = useState('All');
+  
+  // Filters State
   const [filterSup, setFilterSup] = useState('All');
+  
+  // Multi-select state for Result
+  const [selectedResults, setSelectedResults] = useState([]);
+  const [isResultDropdownOpen, setIsResultDropdownOpen] = useState(false);
+
+  // Multi-select state for Type (AC/BC)
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   
   // Multi-select state for agents
   const [selectedAgents, setSelectedAgents] = useState([]); 
@@ -289,8 +297,9 @@ const App = () => {
     return data.filter(item => {
       const matchesSearch = item.agent.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             item.comment.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesResult = filterResult === 'All' || item.result === filterResult;
-      const matchesACBC = filterACBC === 'All' || item.type === filterACBC;
+      
+      const matchesResult = selectedResults.length === 0 || selectedResults.includes(item.result);
+      const matchesACBC = selectedTypes.length === 0 || selectedTypes.includes(item.type);
       const matchesSup = filterSup === 'All' || item.supervisor === filterSup;
       
       // Multi-select Agent Logic
@@ -300,7 +309,7 @@ const App = () => {
       const matchesMonth = selectedMonth === 'All' || item.month === selectedMonth;
       return matchesSearch && matchesResult && matchesACBC && matchesSup && matchesAgent && matchesYear && matchesMonth;
     });
-  }, [data, searchTerm, filterResult, filterACBC, filterSup, selectedAgents, selectedYear, selectedMonth]);
+  }, [data, searchTerm, selectedResults, selectedTypes, filterSup, selectedAgents, selectedYear, selectedMonth]);
 
   const agentSummary = useMemo(() => {
     const summaryMap = {};
@@ -365,6 +374,26 @@ const App = () => {
     });
   };
 
+  const toggleTypeSelection = (type) => {
+    setSelectedTypes(prev => {
+      if (prev.includes(type)) {
+        return prev.filter(t => t !== type);
+      } else {
+        return [...prev, type];
+      }
+    });
+  };
+
+  const toggleResultSelection = (result) => {
+    setSelectedResults(prev => {
+      if (prev.includes(result)) {
+        return prev.filter(r => r !== result);
+      } else {
+        return [...prev, result];
+      }
+    });
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -397,7 +426,7 @@ const App = () => {
             CATI CES 2026
           </h2>
           <p className="text-center text-slate-400 text-sm font-bold uppercase tracking-widest mb-8">
-            Analytics Dashboard
+            QC Report
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -605,18 +634,99 @@ const App = () => {
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  
-                  {/* Type Filter (AC/BC) - NEW */}
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
-                    <Briefcase size={14} className="text-orange-500" />
-                    <select 
-                      className="bg-transparent text-[10px] font-black outline-none" 
-                      value={filterACBC} 
-                      onChange={(e) => setFilterACBC(e.target.value)}
+
+                  {/* Multi-Select Result Filter */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsResultDropdownOpen(!isResultDropdownOpen)}
+                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedResults.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200'}`}
                     >
-                      <option value="All">ประเภทงานทั้งหมด</option>
-                      {availableTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                      <Activity size={14} className={selectedResults.length > 0 ? "text-indigo-500" : "text-indigo-500"} />
+                      <span className="truncate max-w-[120px]">
+                        {selectedResults.length === 0 ? 'ผลการสัมภาษณ์' : `เลือกแล้ว ${selectedResults.length}`}
+                      </span>
+                      <ChevronDown size={12} className={`transition-transform ${isResultDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isResultDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsResultDropdownOpen(false)}></div>
+                        <div className="absolute top-full mt-2 left-0 min-w-[200px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกผลงาน</span>
+                             <div className="flex gap-1">
+                                {selectedResults.length > 0 && (
+                                    <button onClick={() => setSelectedResults([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
+                                )}
+                                <button onClick={() => setIsResultDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
+                            </div>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                            {RESULT_ORDER.map(res => {
+                              const isSelected = selectedResults.includes(res);
+                              return (
+                                <div 
+                                  key={res} 
+                                  onClick={() => toggleResultSelection(res)}
+                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                >
+                                  {isSelected ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} className="text-slate-300" />}
+                                  <span style={{ color: COLORS[res] }}>{res}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Multi-Select Type Filter (AC/BC) */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedTypes.length > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200'}`}
+                    >
+                      <Briefcase size={14} className={selectedTypes.length > 0 ? "text-orange-500" : "text-orange-500"} />
+                      <span className="truncate max-w-[120px]">
+                        {selectedTypes.length === 0 ? 'ประเภทงาน' : `เลือกแล้ว ${selectedTypes.length}`}
+                      </span>
+                      <ChevronDown size={12} className={`transition-transform ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isTypeDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsTypeDropdownOpen(false)}></div>
+                        <div className="absolute top-full mt-2 left-0 min-w-[200px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกประเภทงาน</span>
+                             <div className="flex gap-1">
+                                {selectedTypes.length > 0 && (
+                                    <button onClick={() => setSelectedTypes([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
+                                )}
+                                <button onClick={() => setIsTypeDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
+                            </div>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                            {availableTypes.length > 0 ? availableTypes.map(type => {
+                              const isSelected = selectedTypes.includes(type);
+                              return (
+                                <div 
+                                  key={type} 
+                                  onClick={() => toggleTypeSelection(type)}
+                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-orange-50 text-orange-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                >
+                                  {isSelected ? <CheckSquare size={16} className="text-orange-500" /> : <Square size={16} className="text-slate-300" />}
+                                  {type}
+                                </div>
+                              );
+                            }) : (
+                                <div className="p-4 text-center text-xs text-slate-400 font-bold">ไม่พบข้อมูล</div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Supervisor Filter */}
