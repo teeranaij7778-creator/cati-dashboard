@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard
@@ -69,19 +69,17 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Filters State
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false); // New state for slide-out
   const [filterSup, setFilterSup] = useState('All');
   
   // Multi-select state for Result
   const [selectedResults, setSelectedResults] = useState([]);
-  const [isResultDropdownOpen, setIsResultDropdownOpen] = useState(false);
-
+  
   // Multi-select state for Type (AC/BC)
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   
   // Multi-select state for agents
   const [selectedAgents, setSelectedAgents] = useState([]); 
-  const [isAgentDropdownOpen, setIsAgentDropdownOpen] = useState(false);
 
   const [selectedYear, setSelectedYear] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
@@ -213,11 +211,13 @@ const App = () => {
         .map((row, index) => {
           let rawResult = row[idx.result]?.toString().trim() || "N/A";
           let cleanResult = "N/A";
-          if (rawResult.includes("ดีเยี่ยม")) cleanResult = "ดีเยี่ยม";
-          else if (rawResult.includes("ผ่านเกณฑ์")) cleanResult = "ผ่านเกณฑ์";
+          
+          // Updated Logic: Check 'fail' first to ensure correctness, and include 'ผ่าน%' in Pass
+          if (rawResult.includes("ไม่ผ่านเกณฑ์")) cleanResult = "ไม่ผ่านเกณฑ์";
+          else if (rawResult.includes("ดีเยี่ยม")) cleanResult = "ดีเยี่ยม";
+          else if (rawResult.includes("ผ่านเกณฑ์") || rawResult.includes("ผ่าน%")) cleanResult = "ผ่านเกณฑ์"; // Added ผ่าน% here
           else if (rawResult.includes("ควรปรับปรุง")) cleanResult = "ควรปรับปรุง";
           else if (rawResult.includes("พบข้อผิดพลาด")) cleanResult = "พบข้อผิดพลาด";
-          else if (rawResult.includes("ไม่ผ่านเกณฑ์")) cleanResult = "ไม่ผ่านเกณฑ์";
 
           // Agent Logic: Combine ID + Name
           const agentId = row[idx.agent]?.toString().trim() || 'Unknown';
@@ -411,6 +411,8 @@ const App = () => {
     return null;
   };
 
+  const hasActiveFilters = filterSup !== 'All' || selectedAgents.length > 0 || selectedResults.length > 0 || selectedTypes.length > 0 || selectedMonth !== 'All';
+
   // --- LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
@@ -488,7 +490,145 @@ const App = () => {
 
   // --- MAIN DASHBOARD ---
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900 relative overflow-x-hidden">
+      
+      {/* FILTER SLIDE-OUT SIDEBAR */}
+      {/* Backdrop */}
+      <div 
+        className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        onClick={() => setIsFilterSidebarOpen(false)}
+      />
+      {/* Sidebar Panel */}
+      <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto`}>
+          <div className="p-6">
+             <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                   <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><Filter size={20} /></div>
+                   <div>
+                       <h3 className="font-black text-slate-800 uppercase italic">ตัวกรองข้อมูล</h3>
+                       <p className="text-[10px] text-slate-400 font-bold">Filter Settings</p>
+                   </div>
+                </div>
+                <button onClick={() => setIsFilterSidebarOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                   <X size={20} />
+                </button>
+             </div>
+             
+             <div className="space-y-6">
+                {/* Reset Button */}
+                <button 
+                    onClick={() => {
+                        setFilterSup('All');
+                        setSelectedAgents([]);
+                        setSelectedResults([]);
+                        setSelectedTypes([]);
+                        setSelectedMonth('All');
+                        setActiveCell({ agent: null, resultType: null });
+                    }}
+                    className="w-full py-2 text-xs font-black text-red-500 bg-red-50 hover:bg-red-100 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                    <Trash2 size={14}/> Reset Filters
+                </button>
+
+                {/* Month Filter */}
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เดือน (Month)</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none" 
+                            value={selectedMonth} 
+                            onChange={(e)=>setSelectedMonth(e.target.value)}
+                        >
+                            <option value="All">ทุกเดือน</option>
+                            {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                </div>
+
+                 {/* Supervisor Filter */}
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Supervisor</label>
+                    <div className="relative">
+                        <select 
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none" 
+                            value={filterSup} 
+                            onChange={(e) => {
+                                setFilterSup(e.target.value);
+                                setSelectedAgents([]); 
+                            }}
+                        >
+                            <option value="All">ทุก Supervisor</option>
+                            {availableSups.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                </div>
+
+                {/* Multi-Select Result Filter */}
+                <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">ผลการสัมภาษณ์</label>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 max-h-48 overflow-y-auto custom-scrollbar">
+                        {RESULT_ORDER.map(res => {
+                        const isSelected = selectedResults.includes(res);
+                        return (
+                            <div 
+                            key={res} 
+                            onClick={() => toggleResultSelection(res)}
+                            className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors mb-1 last:mb-0 ${isSelected ? 'bg-white shadow-sm ring-1 ring-indigo-100' : 'hover:bg-slate-100 text-slate-500'}`}
+                            >
+                            {isSelected ? <CheckSquare size={16} className="text-indigo-500 flex-shrink-0" /> : <Square size={16} className="text-slate-300 flex-shrink-0" />}
+                            <span style={{ color: isSelected ? COLORS[res] : undefined }}>{res}</span>
+                            </div>
+                        );
+                        })}
+                    </div>
+                </div>
+
+                {/* Multi-Select Type Filter */}
+                <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">ประเภทงาน</label>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 max-h-40 overflow-y-auto custom-scrollbar">
+                        {availableTypes.length > 0 ? availableTypes.map(type => {
+                        const isSelected = selectedTypes.includes(type);
+                        return (
+                            <div 
+                            key={type} 
+                            onClick={() => toggleTypeSelection(type)}
+                            className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors mb-1 last:mb-0 ${isSelected ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-200' : 'hover:bg-slate-100 text-slate-500'}`}
+                            >
+                            {isSelected ? <CheckSquare size={16} className="text-orange-500 flex-shrink-0" /> : <Square size={16} className="text-slate-300 flex-shrink-0" />}
+                            {type}
+                            </div>
+                        );
+                        }) : <div className="p-2 text-center text-xs text-slate-400">ไม่พบข้อมูล</div>}
+                    </div>
+                </div>
+
+                {/* Multi-Select Agent Filter */}
+                <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">พนักงาน ({availableAgents.length})</label>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2 max-h-60 overflow-y-auto custom-scrollbar">
+                        {availableAgents.length > 0 ? availableAgents.map(agent => {
+                        const isSelected = selectedAgents.includes(agent);
+                        return (
+                            <div 
+                            key={agent} 
+                            onClick={() => toggleAgentSelection(agent)}
+                            className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors mb-1 last:mb-0 ${isSelected ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'hover:bg-slate-100 text-slate-500'}`}
+                            >
+                            {isSelected ? <CheckSquare size={16} className="text-emerald-500 flex-shrink-0" /> : <Square size={16} className="text-slate-300 flex-shrink-0" />}
+                            <span className="truncate">{agent}</span>
+                            </div>
+                        );
+                        }) : <div className="p-2 text-center text-xs text-slate-400">ไม่พบพนักงาน</div>}
+                    </div>
+                </div>
+             </div>
+          </div>
+       </aside>
+
+
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
@@ -512,6 +652,17 @@ const App = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            
+            {/* Filter Toggle Button */}
+            <button 
+                onClick={() => setIsFilterSidebarOpen(true)} 
+                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-black shadow-sm transition-all border ${hasActiveFilters ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            >
+              <Filter size={16} className={hasActiveFilters ? 'text-indigo-600' : 'text-slate-400'} /> 
+              ตัวกรอง
+              {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+            </button>
+
             <button onClick={() => setShowSync(!showSync)} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all">
               <Settings size={14} /> {data.length > 0 ? 'ตั้งค่าการเชื่อมต่อ' : 'เชื่อมต่อ GOOGLE SHEET'}
             </button>
@@ -571,360 +722,194 @@ const App = () => {
         )}
 
         {data.length > 0 ? (
-          <>
+          <div className="space-y-6">
+            
             {/* KPI Section */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
+            {[
                 { label: 'งานที่ตรวจทั้งหมด', value: filteredData.length, icon: FileText, color: 'text-indigo-600', bg: 'bg-indigo-100' },
                 { label: 'อัตราผ่านเกณฑ์', value: `${passRate}%`, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-100' },
                 { label: 'ควรปรับปรุง', value: filteredData.filter(d=>d.result==='ควรปรับปรุง').length, icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-100' },
                 { label: 'พบข้อผิดพลาด', value: filteredData.filter(d=>d.result==='พบข้อผิดพลาด').length, icon: XCircle, color: 'text-red-600', bg: 'bg-red-100' }
-              ].map((kpi, i) => (
+            ].map((kpi, i) => (
                 <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm transition-all hover:shadow-md">
-                  <div className={`w-8 h-8 ${kpi.bg} ${kpi.color} rounded-xl flex items-center justify-center mb-3`}><kpi.icon size={16} /></div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
-                  <h2 className={`text-3xl font-black ${kpi.color}`}>{kpi.value}</h2>
+                <div className={`w-8 h-8 ${kpi.bg} ${kpi.color} rounded-xl flex items-center justify-center mb-3`}><kpi.icon size={16} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
+                <h2 className={`text-3xl font-black ${kpi.color}`}>{kpi.value}</h2>
                 </div>
-              ))}
+            ))}
             </div>
 
             {/* Visual Analytics Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600"><BarChart2 size={20}/></div>
-                            <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-lg">Performance Distribution (with %)</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {chartData.map((item) => (
-                                <div key={item.name} className="flex flex-col items-center bg-slate-50 px-3 py-2 rounded-xl min-w-[80px]">
-                                    <span className="text-[10px] font-bold text-slate-400">{item.name}</span>
-                                    <span className="text-sm font-black" style={{color: item.color}}>{item.percent}%</span>
-                                </div>
-                            ))}
-                        </div>
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600"><BarChart2 size={20}/></div>
+                        <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-lg">Performance Distribution (with %)</h3>
                     </div>
-                    <div className="h-64 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 700, fill: '#64748b', fontFamily: 'Sarabun'}} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8', fontFamily: 'Sarabun'}} />
-                                <Tooltip cursor={{fill: '#f8fafc'}} content={<CustomTooltip />} />
-                                <Bar dataKey="count" radius={[8, 8, 8, 8]} barSize={50}>
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {chartData.map((item) => (
+                            <div key={item.name} className="flex flex-col items-center bg-slate-50 px-3 py-2 rounded-xl min-w-[80px]">
+                                <span className="text-[10px] font-bold text-slate-400">{item.name}</span>
+                                <span className="text-sm font-black" style={{color: item.color}}>{item.percent}%</span>
+                            </div>
+                        ))}
                     </div>
+                </div>
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 700, fill: '#64748b', fontFamily: 'Sarabun'}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8', fontFamily: 'Sarabun'}} />
+                            <Tooltip cursor={{fill: '#f8fafc'}} content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[8, 8, 8, 8]} barSize={50}>
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
             {/* Matrix Table */}
             <div className="bg-white rounded-[3rem] shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-lg uppercase tracking-tight">
-                    <TrendingUp size={24} className="text-indigo-500" />
-                    สรุปคุณภาพพนักงาน x ผลสัมภาษณ์
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
+                <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div>
+                    <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-lg uppercase tracking-tight">
+                        <TrendingUp size={24} className="text-indigo-500" />
+                        สรุปคุณภาพพนักงาน x ผลสัมภาษณ์
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
+                    </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-
-                  {/* Multi-Select Result Filter */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setIsResultDropdownOpen(!isResultDropdownOpen)}
-                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedResults.length > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200'}`}
-                    >
-                      <Activity size={14} className={selectedResults.length > 0 ? "text-indigo-500" : "text-indigo-500"} />
-                      <span className="truncate max-w-[120px]">
-                        {selectedResults.length === 0 ? 'ผลการสัมภาษณ์' : `เลือกแล้ว ${selectedResults.length}`}
-                      </span>
-                      <ChevronDown size={12} className={`transition-transform ${isResultDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isResultDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsResultDropdownOpen(false)}></div>
-                        <div className="absolute top-full mt-2 left-0 min-w-[200px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกผลงาน</span>
-                             <div className="flex gap-1">
-                                {selectedResults.length > 0 && (
-                                    <button onClick={() => setSelectedResults([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
-                                )}
-                                <button onClick={() => setIsResultDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
-                            </div>
-                          </div>
-                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
-                            {RESULT_ORDER.map(res => {
-                              const isSelected = selectedResults.includes(res);
-                              return (
-                                <div 
-                                  key={res} 
-                                  onClick={() => toggleResultSelection(res)}
-                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                <div className="overflow-x-auto max-h-[500px]">
+                    <table className="w-full text-left text-sm border-separate border-spacing-0">
+                    <thead className="sticky top-0 bg-white z-20 font-black text-slate-400 text-[10px] uppercase tracking-widest border-b border-slate-100 shadow-sm">
+                        <tr>
+                        <th rowSpan="2" className="px-8 py-6 border-b-2 border-slate-100 border-r border-slate-50 bg-white">พนักงานสัมภาษณ์</th>
+                        <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b-2 border-slate-100 bg-slate-50 text-indigo-600 text-[11px] font-black italic uppercase">สรุปผลการสัมภาษณ์</th>
+                        <th rowSpan="2" className="px-8 py-6 text-center bg-slate-50 text-slate-800 border-b-2 border-slate-100 border-l border-slate-100">รวม</th>
+                        </tr>
+                        <tr className="bg-white shadow-sm">
+                        {RESULT_ORDER.map(type => (
+                            <th key={type} className="px-4 py-3 text-center border-b border-slate-100 border-r border-slate-50 text-slate-500">
+                            {type}
+                            </th>
+                        ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 font-medium">
+                        {agentSummary.map((agent, i) => (
+                        <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                            <td className="px-8 py-4 font-black text-slate-700 border-r border-slate-50">{agent.name}</td>
+                            {RESULT_ORDER.map(type => {
+                            const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
+                            const val = agent[type];
+                            return (
+                                <td 
+                                key={type} 
+                                className={`px-4 py-4 text-center border-r border-slate-50 transition-all ${val > 0 ? 'cursor-pointer hover:bg-slate-100' : ''} ${isActive ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
+                                onClick={() => val > 0 && handleMatrixClick(agent.name, type)}
                                 >
-                                  {isSelected ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} className="text-slate-300" />}
-                                  <span style={{ color: COLORS[res] }}>{res}</span>
-                                </div>
-                              );
+                                <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-100'}`} style={{ color: val > 0 ? COLORS[type] : undefined }}>
+                                    {val || '-'}
+                                </span>
+                                </td>
+                            );
                             })}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Multi-Select Type Filter (AC/BC) */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedTypes.length > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200'}`}
-                    >
-                      <Briefcase size={14} className={selectedTypes.length > 0 ? "text-orange-500" : "text-orange-500"} />
-                      <span className="truncate max-w-[120px]">
-                        {selectedTypes.length === 0 ? 'ประเภทงาน' : `เลือกแล้ว ${selectedTypes.length}`}
-                      </span>
-                      <ChevronDown size={12} className={`transition-transform ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isTypeDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsTypeDropdownOpen(false)}></div>
-                        <div className="absolute top-full mt-2 left-0 min-w-[200px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกประเภทงาน</span>
-                             <div className="flex gap-1">
-                                {selectedTypes.length > 0 && (
-                                    <button onClick={() => setSelectedTypes([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
-                                )}
-                                <button onClick={() => setIsTypeDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
-                            </div>
-                          </div>
-                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
-                            {availableTypes.length > 0 ? availableTypes.map(type => {
-                              const isSelected = selectedTypes.includes(type);
-                              return (
-                                <div 
-                                  key={type} 
-                                  onClick={() => toggleTypeSelection(type)}
-                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-orange-50 text-orange-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                                >
-                                  {isSelected ? <CheckSquare size={16} className="text-orange-500" /> : <Square size={16} className="text-slate-300" />}
-                                  {type}
-                                </div>
-                              );
-                            }) : (
-                                <div className="p-4 text-center text-xs text-slate-400 font-bold">ไม่พบข้อมูล</div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Supervisor Filter */}
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
-                    <UserCheck size={14} className="text-indigo-500" />
-                    <select 
-                      className="bg-transparent text-[10px] font-black outline-none max-w-[120px]" 
-                      value={filterSup} 
-                      onChange={(e) => {
-                        setFilterSup(e.target.value);
-                        setSelectedAgents([]); // Reset agent selection when Sup changes
-                      }}
-                    >
-                      <option value="All">ทุก Supervisor</option>
-                      {availableSups.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Multi-Select Agent Filter */}
-                  <div className="relative">
-                    <button 
-                      onClick={() => setIsAgentDropdownOpen(!isAgentDropdownOpen)}
-                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedAgents.length > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200'}`}
-                    >
-                      <User size={14} className={selectedAgents.length > 0 ? "text-emerald-500" : "text-emerald-500"} />
-                      <span className="truncate max-w-[120px]">
-                        {selectedAgents.length === 0 ? 'พนักงานทุกคน' : `เลือกแล้ว ${selectedAgents.length} คน`}
-                      </span>
-                      <ChevronDown size={12} className={`transition-transform ${isAgentDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isAgentDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setIsAgentDropdownOpen(false)}></div>
-                        <div className="absolute top-full mt-2 left-0 min-w-[240px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกพนักงาน</span>
-                            <div className="flex gap-1">
-                                {selectedAgents.length > 0 && (
-                                    <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
-                                )}
-                                <button onClick={() => setIsAgentDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
-                            </div>
-                          </div>
-                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
-                            {availableAgents.length > 0 ? availableAgents.map(agent => {
-                              const isSelected = selectedAgents.includes(agent);
-                              return (
-                                <div 
-                                  key={agent} 
-                                  onClick={() => toggleAgentSelection(agent)}
-                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                                >
-                                  {isSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} className="text-slate-300" />}
-                                  {agent}
-                                </div>
-                              );
-                            }) : (
-                              <div className="p-4 text-center text-xs text-slate-400 font-bold">ไม่พบพนักงาน</div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  <select className="bg-white border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm" value={selectedMonth} onChange={(e)=>setSelectedMonth(e.target.value)}>
-                    <option value="All">ทุกเดือน</option>
-                    {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                            <td className="px-8 py-4 text-center bg-slate-50/50 font-black text-slate-900 border-l border-slate-100 group-hover:bg-indigo-50">{agent.total}</td>
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
                 </div>
-              </div>
-              <div className="overflow-x-auto max-h-[500px]">
-                <table className="w-full text-left text-sm border-separate border-spacing-0">
-                  <thead className="sticky top-0 bg-white z-20 font-black text-slate-400 text-[10px] uppercase tracking-widest border-b border-slate-100 shadow-sm">
-                    <tr>
-                      <th rowSpan="2" className="px-8 py-6 border-b-2 border-slate-100 border-r border-slate-50 bg-white">พนักงานสัมภาษณ์</th>
-                      <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b-2 border-slate-100 bg-slate-50 text-indigo-600 text-[11px] font-black italic uppercase">สรุปผลการสัมภาษณ์</th>
-                      <th rowSpan="2" className="px-8 py-6 text-center bg-slate-50 text-slate-800 border-b-2 border-slate-100 border-l border-slate-100">รวม</th>
-                    </tr>
-                    <tr className="bg-white shadow-sm">
-                      {RESULT_ORDER.map(type => (
-                        <th key={type} className="px-4 py-3 text-center border-b border-slate-100 border-r border-slate-50 text-slate-500">
-                          {type}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 font-medium">
-                    {agentSummary.map((agent, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                        <td className="px-8 py-4 font-black text-slate-700 border-r border-slate-50">{agent.name}</td>
-                        {RESULT_ORDER.map(type => {
-                          const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
-                          const val = agent[type];
-                          return (
-                            <td 
-                              key={type} 
-                              className={`px-4 py-4 text-center border-r border-slate-50 transition-all ${val > 0 ? 'cursor-pointer hover:bg-slate-100' : ''} ${isActive ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-500 z-10' : ''}`}
-                              onClick={() => val > 0 && handleMatrixClick(agent.name, type)}
-                            >
-                              <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-100'}`} style={{ color: val > 0 ? COLORS[type] : undefined }}>
-                                {val || '-'}
-                              </span>
-                            </td>
-                          );
-                        })}
-                        <td className="px-8 py-4 text-center bg-slate-50/50 font-black text-slate-900 border-l border-slate-100 group-hover:bg-indigo-50">{agent.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
 
             {/* Detailed Case Log */}
             <div id="detail-section" className="bg-white rounded-[3rem] shadow-sm border border-slate-200 overflow-hidden scroll-mt-6">
-              <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
-                  <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2">
+                <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2">
                     <MessageSquare size={16} className="text-indigo-500" /> ข้อมูลรายเคสแบบละเอียด
-                  </h3>
-                  {activeCell.agent && (
+                </h3>
+                {activeCell.agent && (
                     <div className="flex items-center gap-2 animate-bounce">
-                      <span className="text-[10px] font-black px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg flex items-center gap-1 shadow-sm border border-indigo-200">
+                    <span className="text-[10px] font-black px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg flex items-center gap-1 shadow-sm border border-indigo-200">
                         กำลังกรอง: {activeCell.agent} ({activeCell.resultType})
                         <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="ml-1 hover:text-red-500 transition-colors">
-                          <FilterX size={12} />
+                        <FilterX size={12} />
                         </button>
-                      </span>
+                    </span>
                     </div>
-                  )}
+                )}
                 </div>
                 <div className="relative w-full md:w-80">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input 
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
                     type="text" placeholder="ค้นหาพนักงาน หรือ คอมเมนต์..." 
                     className="w-full pl-12 pr-6 py-3 bg-slate-50 border border-slate-200 rounded-[1.25rem] text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
                     value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)}
-                  />
+                />
                 </div>
-              </div>
-              <div className="overflow-auto max-h-[600px]">
+            </div>
+            <div className="overflow-auto max-h-[600px]">
                 <table className="w-full text-left text-xs font-medium">
-                  <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-100 font-black text-slate-400 uppercase tracking-widest">
+                <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-100 font-black text-slate-400 uppercase tracking-widest">
                     <tr>
-                      <th className="px-8 py-5">วันที่ / ประเภท</th>
-                      <th className="px-8 py-5">พนักงานสัมภาษณ์</th>
-                      <th className="px-4 py-5 text-center">ผลการสัมภาษณ์</th>
-                      <th className="px-8 py-5">QC Comment & Audio</th>
+                    <th className="px-8 py-5">วันที่ / ประเภท</th>
+                    <th className="px-8 py-5">พนักงานสัมภาษณ์</th>
+                    <th className="px-4 py-5 text-center">ผลการสัมภาษณ์</th>
+                    <th className="px-8 py-5">QC Comment & Audio</th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
+                </thead>
+                <tbody className="divide-y divide-slate-100">
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/80 transition-all group">
+                    <tr key={idx} className="hover:bg-slate-50/80 transition-all group">
                         <td className="px-8 py-5">
-                          <div className="font-black text-slate-800">{item.date}</div>
-                          <div className="text-[9px] text-slate-400 uppercase font-bold mt-1 tracking-tighter">Sup: {item.supervisor}</div>
-                          <div className={`text-[9px] font-black inline-block px-2 py-0.5 rounded-lg mt-1 shadow-sm ${item.type === 'AC' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-white'}`}>{item.type}</div>
+                        <div className="font-black text-slate-800">{item.date}</div>
+                        <div className="text-[9px] text-slate-400 uppercase font-bold mt-1 tracking-tighter">Sup: {item.supervisor}</div>
+                        <div className={`text-[9px] font-black inline-block px-2 py-0.5 rounded-lg mt-1 shadow-sm ${item.type === 'AC' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-white'}`}>{item.type}</div>
                         </td>
                         <td className="px-8 py-5">
-                          <div className="font-black text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{item.agent}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic opacity-60">{item.touchpoint}</div>
+                        <div className="font-black text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{item.agent}</div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter italic opacity-60">{item.touchpoint}</div>
                         </td>
                         <td className="px-4 py-5 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[9px] font-black shadow-sm" style={{ backgroundColor: `${COLORS[item.result]}15`, color: COLORS[item.result], border: `1px solid ${COLORS[item.result]}25` }}>
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[9px] font-black shadow-sm" style={{ backgroundColor: `${COLORS[item.result]}15`, color: COLORS[item.result], border: `1px solid ${COLORS[item.result]}25` }}>
                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[item.result] }}></div>
                             {item.result}
-                          </span>
+                        </span>
                         </td>
                         <td className="px-8 py-5">
-                          <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2">
                             <p className="text-slate-500 font-semibold italic line-clamp-2 group-hover:text-slate-900 group-hover:line-clamp-none transition-all">
-                              {item.comment ? `"${item.comment}"` : '-'}
+                            {item.comment ? `"${item.comment}"` : '-'}
                             </p>
                             {item.audio && item.audio.includes('http') && (
-                              <a 
+                            <a 
                                 href={item.audio} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 font-black text-[10px] uppercase transition-colors"
-                              >
+                            >
                                 <PlayCircle size={14} /> Listen Recording
-                              </a>
+                            </a>
                             )}
-                          </div>
+                        </div>
                         </td>
-                      </tr>
+                    </tr>
                     )) : (
-                      <tr>
+                    <tr>
                         <td colSpan={4} className="px-8 py-20 text-center text-slate-400 font-bold italic opacity-50">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td>
-                      </tr>
+                    </tr>
                     )}
-                  </tbody>
+                </tbody>
                 </table>
-              </div>
             </div>
-          </>
+            </div>
+          </div>
         ) : (
           !loading && (
             <div className="bg-white rounded-[4rem] border-4 border-dashed border-slate-200 py-32 text-center shadow-inner">
