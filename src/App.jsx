@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard
@@ -64,6 +64,11 @@ const App = () => {
   const [filterResult, setFilterResult] = useState('All');
   const [filterACBC, setFilterACBC] = useState('All');
   const [filterSup, setFilterSup] = useState('All');
+  
+  // Multi-select state for agents
+  const [selectedAgents, setSelectedAgents] = useState([]); 
+  const [isAgentDropdownOpen, setIsAgentDropdownOpen] = useState(false);
+
   const [selectedYear, setSelectedYear] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
   const [showSync, setShowSync] = useState(!localStorage.getItem('qc_sheet_url') && !DEFAULT_SHEET_URL);
@@ -151,7 +156,8 @@ const App = () => {
         touchpoint: getIdx("TOUCH_POINT"),
         type: getIdx("AC / BC"),
         sup: getIdx("Supervisor"),
-        agent: getIdx("Interviewer"),
+        agent: getIdx("Interviewer"), // Usually gets 'Interviewer ID'
+        agentName: headers.findIndex(h => h.toLowerCase().includes("interviewer name") || h.toLowerCase().includes("ชื่อ-นามสกุล") || h.toLowerCase().includes("ชื่อพนักงาน")), // Try to find Name
         audio: getIdx("ไฟล์เสียง"),
         result: getIdx("สรุปผลการสัมภาษณ์"),
         comment: getIdx("Comment")
@@ -161,8 +167,24 @@ const App = () => {
 
       const parsedData = allRows.slice(headerIdx + 1)
         .filter(row => {
-          const agentName = row[idx.agent]?.toString().trim() || "";
-          return agentName !== "" && agentName !== "#N/A" && !agentName.toLowerCase().includes("interviewer");
+          const agentCode = row[idx.agent]?.toString().trim() || "";
+          
+          // 1. Filter invalid Agent ID (Empty, #N/A, or Header text)
+          if (agentCode === "" || 
+              agentCode.includes("#N/A") || 
+              agentCode.toLowerCase().includes("interviewer")) {
+            return false;
+          }
+
+          // 2. Filter invalid Agent Name (#N/A)
+          if (idx.agentName !== -1) {
+            const agentNameValue = row[idx.agentName]?.toString().trim() || "";
+            if (agentNameValue.includes("#N/A")) {
+              return false; // Skip this row if Name is #N/A
+            }
+          }
+
+          return true;
         })
         .map((row, index) => {
           let rawResult = row[idx.result]?.toString().trim() || "N/A";
@@ -173,6 +195,19 @@ const App = () => {
           else if (rawResult.includes("พบข้อผิดพลาด")) cleanResult = "พบข้อผิดพลาด";
           else if (rawResult.includes("ไม่ผ่านเกณฑ์")) cleanResult = "ไม่ผ่านเกณฑ์";
 
+          // Agent Logic: Combine ID + Name
+          const agentId = row[idx.agent]?.toString().trim() || 'Unknown';
+          const agentName = (idx.agentName !== -1) ? row[idx.agentName]?.toString().trim() : '';
+          
+          let displayAgent = agentId;
+          // Check if name exists, is valid, is not same as ID
+          if (agentName && 
+              agentName !== agentId && 
+              !agentId.includes(agentName)
+          ) {
+            displayAgent = `${agentId} : ${agentName}`;
+          }
+
           return {
             id: index,
             year: idx.year !== -1 ? row[idx.year]?.toString().trim() : 'N/A',
@@ -181,7 +216,7 @@ const App = () => {
             touchpoint: idx.touchpoint !== -1 ? row[idx.touchpoint]?.toString().trim() : 'N/A',
             type: idx.type !== -1 ? row[idx.type]?.toString().trim() : 'N/A',
             supervisor: idx.sup !== -1 ? row[idx.sup]?.toString().trim() : 'N/A',
-            agent: row[idx.agent]?.toString().trim() || 'Unknown',
+            agent: displayAgent,
             audio: idx.audio !== -1 ? row[idx.audio]?.toString().trim() : '',
             result: cleanResult,
             comment: idx.comment !== -1 ? row[idx.comment]?.toString().trim() : ''
@@ -219,6 +254,21 @@ const App = () => {
     return [...new Set(sups)].sort();
   }, [data]);
 
+  const availableTypes = useMemo(() => {
+    const types = data.map(d => d.type).filter(t => t && t !== 'N/A' && t !== '');
+    return [...new Set(types)].sort();
+  }, [data]);
+
+  const availableAgents = useMemo(() => {
+    let filtered = data;
+    // Filter agents based on selected Supervisor so the list is relevant
+    if (filterSup !== 'All') {
+      filtered = filtered.filter(d => d.supervisor === filterSup);
+    }
+    const agents = filtered.map(d => d.agent).filter(a => a && a !== 'Unknown');
+    return [...new Set(agents)].sort();
+  }, [data, filterSup]);
+
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const matchesSearch = item.agent.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -226,11 +276,15 @@ const App = () => {
       const matchesResult = filterResult === 'All' || item.result === filterResult;
       const matchesACBC = filterACBC === 'All' || item.type === filterACBC;
       const matchesSup = filterSup === 'All' || item.supervisor === filterSup;
+      
+      // Multi-select Agent Logic
+      const matchesAgent = selectedAgents.length === 0 || selectedAgents.includes(item.agent);
+      
       const matchesYear = selectedYear === 'All' || item.year === selectedYear;
       const matchesMonth = selectedMonth === 'All' || item.month === selectedMonth;
-      return matchesSearch && matchesResult && matchesACBC && matchesSup && matchesYear && matchesMonth;
+      return matchesSearch && matchesResult && matchesACBC && matchesSup && matchesAgent && matchesYear && matchesMonth;
     });
-  }, [data, searchTerm, filterResult, filterACBC, filterSup, selectedYear, selectedMonth]);
+  }, [data, searchTerm, filterResult, filterACBC, filterSup, selectedAgents, selectedYear, selectedMonth]);
 
   const agentSummary = useMemo(() => {
     const summaryMap = {};
@@ -246,8 +300,9 @@ const App = () => {
     return Object.values(summaryMap).sort((a, b) => b.total - a.total);
   }, [filteredData]);
 
-  // Chart Data Preparation (Added for this version)
+  // Chart Data Preparation
   const chartData = useMemo(() => {
+    const total = filteredData.length;
     const counts = { 'ดีเยี่ยม': 0, 'ผ่านเกณฑ์': 0, 'ควรปรับปรุง': 0, 'พบข้อผิดพลาด': 0, 'ไม่ผ่านเกณฑ์': 0 };
     filteredData.forEach(d => {
         if(counts[d.result] !== undefined) counts[d.result]++;
@@ -255,6 +310,7 @@ const App = () => {
     return Object.keys(counts).map(key => ({
         name: key,
         count: counts[key],
+        percent: total > 0 ? ((counts[key] / total) * 100).toFixed(1) : 0, 
         color: COLORS[key]
     }));
   }, [filteredData]);
@@ -281,6 +337,33 @@ const App = () => {
       const el = document.getElementById('detail-section');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const toggleAgentSelection = (agent) => {
+    setSelectedAgents(prev => {
+      if (prev.includes(agent)) {
+        return prev.filter(a => a !== agent);
+      } else {
+        return [...prev, agent];
+      }
+    });
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-4 rounded-2xl shadow-xl border border-slate-100 font-sans">
+          <p className="font-black text-slate-800 text-sm mb-1">{label}</p>
+          <div className="flex items-center gap-2 text-indigo-600 font-bold text-lg">
+            <span>{data.count} เคส</span>
+            <span className="text-slate-300">|</span>
+            <span>{data.percent}%</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -381,12 +464,22 @@ const App = () => {
               ))}
             </div>
 
-            {/* Visual Analytics Chart (Added for this version) */}
+            {/* Visual Analytics Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600"><BarChart2 size={20}/></div>
-                        <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-lg">Overall Performance Distribution</h3>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600"><BarChart2 size={20}/></div>
+                            <h3 className="font-black text-slate-800 uppercase italic tracking-tight text-lg">Performance Distribution (with %)</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {chartData.map((item) => (
+                                <div key={item.name} className="flex flex-col items-center bg-slate-50 px-3 py-2 rounded-xl min-w-[80px]">
+                                    <span className="text-[10px] font-bold text-slate-400">{item.name}</span>
+                                    <span className="text-sm font-black" style={{color: item.color}}>{item.percent}%</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -394,10 +487,7 @@ const App = () => {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 700, fill: '#64748b', fontFamily: 'Sarabun'}} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8', fontFamily: 'Sarabun'}} />
-                                <Tooltip 
-                                    cursor={{fill: '#f8fafc'}}
-                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontFamily: 'Sarabun'}} 
-                                />
+                                <Tooltip cursor={{fill: '#f8fafc'}} content={<CustomTooltip />} />
                                 <Bar dataKey="count" radius={[8, 8, 8, 8]} barSize={50}>
                                     {chartData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -420,13 +510,84 @@ const App = () => {
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 italic flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  
+                  {/* Type Filter (AC/BC) - NEW */}
+                  <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
+                    <Briefcase size={14} className="text-orange-500" />
+                    <select 
+                      className="bg-transparent text-[10px] font-black outline-none" 
+                      value={filterACBC} 
+                      onChange={(e) => setFilterACBC(e.target.value)}
+                    >
+                      <option value="All">ประเภทงานทั้งหมด</option>
+                      {availableTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Supervisor Filter */}
                   <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
                     <UserCheck size={14} className="text-indigo-500" />
-                    <select className="bg-transparent text-[10px] font-black outline-none max-w-[120px]" value={filterSup} onChange={(e)=>setFilterSup(e.target.value)}>
+                    <select 
+                      className="bg-transparent text-[10px] font-black outline-none max-w-[120px]" 
+                      value={filterSup} 
+                      onChange={(e) => {
+                        setFilterSup(e.target.value);
+                        setSelectedAgents([]); // Reset agent selection when Sup changes
+                      }}
+                    >
                       <option value="All">ทุก Supervisor</option>
                       {availableSups.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
+
+                  {/* Multi-Select Agent Filter */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsAgentDropdownOpen(!isAgentDropdownOpen)}
+                      className={`flex items-center gap-2 border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm transition-all ${selectedAgents.length > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200'}`}
+                    >
+                      <User size={14} className={selectedAgents.length > 0 ? "text-emerald-500" : "text-emerald-500"} />
+                      <span className="truncate max-w-[120px]">
+                        {selectedAgents.length === 0 ? 'พนักงานทุกคน' : `เลือกแล้ว ${selectedAgents.length} คน`}
+                      </span>
+                      <ChevronDown size={12} className={`transition-transform ${isAgentDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isAgentDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setIsAgentDropdownOpen(false)}></div>
+                        <div className="absolute top-full mt-2 left-0 min-w-[240px] bg-white rounded-2xl shadow-xl z-20 border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          <div className="p-2 border-b border-slate-50 flex items-center justify-between bg-slate-50">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">เลือกพนักงาน</span>
+                            <div className="flex gap-1">
+                                {selectedAgents.length > 0 && (
+                                    <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 font-bold px-2 py-1 hover:bg-red-50 rounded-lg">Clear</button>
+                                )}
+                                <button onClick={() => setIsAgentDropdownOpen(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={14}/></button>
+                            </div>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
+                            {availableAgents.length > 0 ? availableAgents.map(agent => {
+                              const isSelected = selectedAgents.includes(agent);
+                              return (
+                                <div 
+                                  key={agent} 
+                                  onClick={() => toggleAgentSelection(agent)}
+                                  className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                >
+                                  {isSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} className="text-slate-300" />}
+                                  {agent}
+                                </div>
+                              );
+                            }) : (
+                              <div className="p-4 text-center text-xs text-slate-400 font-bold">ไม่พบพนักงาน</div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
                   <select className="bg-white border px-3 py-1.5 rounded-xl text-[10px] font-black outline-none shadow-sm" value={selectedMonth} onChange={(e)=>setSelectedMonth(e.target.value)}>
                     <option value="All">ทุกเดือน</option>
                     {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
