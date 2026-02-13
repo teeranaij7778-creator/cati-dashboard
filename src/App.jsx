@@ -9,7 +9,7 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - INTAGE BLACK & RED Edition
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล (Edit Mode)
- * แก้ไข: เพิ่มการดึง Tailwind CDN และ Google Fonts เพื่อให้รันใน VS Code ได้ทันที
+ * แก้ไข: ปรับปรุงความแม่นยำของ rowIndex ในการส่งข้อมูลไปบันทึกที่ Google Sheets
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -195,18 +195,22 @@ const App = () => {
         audio: getIdx("ไฟล์เสียง") 
       };
       
-      const parsedData = allRows.slice(headerIdx + 1).filter(row => {
+      // การดึงข้อมูลแบบเก็บลำดับแถวที่ถูกต้อง
+      const parsedData = allRows.slice(headerIdx + 1)
+        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // คำนวณเลขแถวใน Sheet (1-based index)
+        .filter(({ row }) => {
           const agentCode = row[idx.agent]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
         })
-        .map((row, index) => {
+        .map(({ row, actualRowNumber }, index) => {
           let rawResult = row[idx.result]?.toString().trim() || "N/A";
           let cleanResult = rawResult;
           const matchedResult = RESULT_ORDER.find(opt => rawResult.includes(opt.split(':')[0].trim()));
           if (matchedResult) cleanResult = matchedResult;
           
           return {
-            id: index, rowIndex: index + headerIdx + 2, 
+            id: index, 
+            rowIndex: actualRowNumber, // ใช้เลขแถวที่แท้จริงจาก Google Sheets
             month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', 
             agent: row[idx.agent] || 'Unknown', questionnaireNo: row[idx.questionnaireNo] || '-', 
             result: cleanResult, comment: row[idx.comment] || '',
@@ -216,6 +220,7 @@ const App = () => {
             evaluations: evaluationsList.map((header, i) => ({ label: header, value: row[15 + i] || '-' }))
           };
         });
+
       setData(parsedData);
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
       try { localStorage.setItem('qc_sheet_url', urlToFetch); } catch(e) {}
@@ -233,9 +238,27 @@ const App = () => {
         evaluations: editingCase.evaluations.map(e => e.value),
         comment: editingCase.comment
       };
-      await fetch(appsScriptUrl, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
-      setTimeout(() => { setIsSaving(false); setEditingCase(null); fetchFromSheet(sheetUrl); }, 2000);
-    } catch (err) { alert(err.message); setIsSaving(false); }
+      
+      // ส่งข้อมูลไปยัง Apps Script (ใช้ mode: no-cors เพราะ Apps Script ไม่รองรับ CORS สำหรับการอ่าน Response โดยตรง)
+      await fetch(appsScriptUrl, { 
+        method: 'POST', 
+        mode: 'no-cors', 
+        cache: 'no-cache', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(updateData) 
+      });
+
+      // หน่วงเวลา 2 วินาทีเพื่อให้ฝั่ง Server บันทึกข้อมูลเสร็จสิ้นก่อนจะดึงข้อมูลใหม่
+      setTimeout(() => { 
+        setIsSaving(false); 
+        setEditingCase(null); 
+        fetchFromSheet(sheetUrl); 
+      }, 2000);
+      
+    } catch (err) { 
+      alert("ไม่สามารถเชื่อมต่อกับระบบแก้ไขข้อมูลได้: " + err.message); 
+      setIsSaving(false); 
+    }
   };
 
   const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))], [data]);
