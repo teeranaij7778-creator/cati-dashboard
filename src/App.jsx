@@ -13,7 +13,7 @@ import {
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMfKbLloQX_YLnWW9o3vCAE5BBCLEWoi9uFOoisfzFb8CCBFcbj5CT31GUNawVylNV/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCOsj8GHe3LRX7bIa1eRy-nqf7o5sseCS4XRXPiMgHuw-9-1vePF1yOBA_NA3BL3WL/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
