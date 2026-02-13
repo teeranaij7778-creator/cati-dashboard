@@ -9,7 +9,7 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (CLEAN)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: ปรับให้ "จำนวนที่ตรวจทั้งหมดไปแล้ว (AC/BC)" เปลี่ยนตาม Filter และแสดง %
+ * - อัปเดต: เพิ่ม Filter "ยังไม่ได้ตรวจ" เพื่อเลือกงานมา Audit
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -180,13 +180,17 @@ const App = () => {
           const agentName = foundName || '';
           const displayAgent = agentName && agentName !== agentId ? `${agentId} : ${agentName}` : agentId;
           
+          // Logic: If AC/BC is empty, set as "ยังไม่ได้ตรวจ"
+          const rawType = row[idx.type]?.toString().trim() || "";
+          const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
+
           return {
             id: index, rowIndex: actualRowNumber, 
             month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', 
             agent: displayAgent, questionnaireNo: row[idx.questionnaireNo] || '-', 
             result: cleanResult, comment: row[idx.comment] || '', audio: row[idx.audio] || '', 
             touchpoint: row[idx.touchpoint] || 'N/A', supervisor: row[idx.sup] || 'N/A',
-            type: row[idx.type] || 'N/A',
+            type: cleanType,
             evaluations: evaluationsList.map((header, i) => ({ label: header, value: row[15 + i] || '-' }))
           };
         });
@@ -256,9 +260,9 @@ const App = () => {
   const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : filteredData, [filteredData, activeCell]);
   const passRate = useMemo(() => filteredData.length === 0 ? 0 : ((filteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / filteredData.length) * 100).toFixed(1), [filteredData]);
 
-  // UPDATE: Calculate Total Audited based on FILTERED results to follow filters
+  // UPDATE: Calculate Total Audited based on FILTERED results to follow filters (Excluding "ยังไม่ได้ตรวจ")
   const totalAuditedFiltered = useMemo(() => {
-    return filteredData.filter(d => d.type !== 'N/A' && d.type !== '').length;
+    return filteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
   }, [filteredData]);
 
   const handleMatrixClick = (agentName, type) => {
@@ -344,7 +348,7 @@ const App = () => {
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-                { label: 'งานที่ตรวจ (ตามตัวกรอง)', value: filteredData.length, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-zinc-800' },
+                { label: 'งานที่เลือกมาดู (ตามตัวกรอง)', value: filteredData.length, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-zinc-800' },
                 { 
                   label: 'จำนวนที่ตรวจแล้ว (AC/BC ตาม Filter)', 
                   value: `${totalAuditedFiltered} (${filteredData.length > 0 ? ((totalAuditedFiltered / filteredData.length) * 100).toFixed(1) : 0}%)`, 
