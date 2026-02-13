@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard
@@ -56,6 +56,12 @@ const parseCSV = (text) => {
 };
 
 const App = () => {
+  // --- Login State ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [inputUser, setInputUser] = useState('');
+  const [inputPass, setInputPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -112,10 +118,20 @@ const App = () => {
   // -----------------------------------------------------------
 
   useEffect(() => {
-    if (sheetUrl && sheetUrl.includes('http')) {
+    if (isAuthenticated && sheetUrl && sheetUrl.includes('http')) {
       fetchFromSheet(sheetUrl);
     }
-  }, [sheetUrl]);
+  }, [sheetUrl, isAuthenticated]); // Add isAuthenticated dependency
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (inputUser === 'Admin' && inputPass === '1234') {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    }
+  };
 
   const fetchFromSheet = async (urlToFetch) => {
     let finalUrl = urlToFetch.trim();
@@ -366,6 +382,82 @@ const App = () => {
     return null;
   };
 
+  // --- LOGIN SCREEN ---
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-900">
+        <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-white">
+          <div className="flex justify-center mb-8">
+            <div className="p-4 bg-indigo-600 rounded-3xl shadow-lg shadow-indigo-200">
+              <Database size={40} className="text-white" />
+            </div>
+          </div>
+          
+          <h2 className="text-2xl font-black text-center text-slate-800 uppercase tracking-tight mb-2">
+            CATI CES 2026
+          </h2>
+          <p className="text-center text-slate-400 text-sm font-bold uppercase tracking-widest mb-8">
+            Analytics Dashboard
+          </p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 pl-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text" 
+                  value={inputUser}
+                  onChange={(e) => setInputUser(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="Enter Username"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 pl-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="password" 
+                  value={inputPass}
+                  onChange={(e) => setInputPass(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="Enter Password"
+                />
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="flex items-center gap-2 text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl">
+                <AlertCircle size={14} /> {loginError}
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-wider shadow-lg shadow-indigo-200 transition-all mt-4 flex items-center justify-center gap-2 group"
+            >
+              เข้าสู่ระบบ <LogIn size={18} className="group-hover:translate-x-1 transition-transform"/>
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-[10px] text-slate-300 font-bold uppercase">
+              Secure Access • Authorized Personnel Only
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- MAIN DASHBOARD ---
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -399,6 +491,9 @@ const App = () => {
                 <Trash2 size={20} />
               </button>
             )}
+             <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 border border-slate-200 transition-colors" title="ออกจากระบบ">
+                <User size={20} />
+            </button>
           </div>
         </header>
 
