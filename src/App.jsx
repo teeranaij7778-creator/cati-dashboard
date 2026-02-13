@@ -9,11 +9,11 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: ปรับขนาดหน้า Login ให้กะทัดรัด (Compact size)
+ * - อัปเดต: เพิ่มฟีเจอร์ "เริ่มตรวจงานใหม่" และส่งค่า AC/BC กลับไปยัง Sheet
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhCpZV3y0edsQonSONcmwupdT9wzaiiLG54xIhAQDEEorbkDangqcSb4lIadq4yHnR/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuGjbG-uFkiwzW7C1OOBzzg2h7XysLZKRxmpcKQcE-YJD8qtQATDz-7Jg4XjLtJGfU/exechttps://script.google.com/macros/s/AKfycbwuGjbG-uFkiwzW7C1OOBzzg2h7XysLZKRxmpcKQcE-YJD8qtQATDz-7Jg4XjLtJGfU/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
@@ -200,11 +200,21 @@ const App = () => {
 
   const handleUpdateCase = async () => {
     if (!appsScriptUrl) return alert("กรุณาตั้งค่า Apps Script URL");
+    
+    // Validate: If it was "ยังไม่ได้ตรวจ", type must be selected
+    if (editingCase.type === "ยังไม่ได้ตรวจ") {
+      alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updateData = {
-        rowIndex: editingCase.rowIndex, result: editingCase.result,
-        evaluations: editingCase.evaluations.map(e => e.value), comment: editingCase.comment
+        rowIndex: editingCase.rowIndex, 
+        result: editingCase.result,
+        type: editingCase.type, // Send the AC/BC status
+        evaluations: editingCase.evaluations.map(e => e.value), 
+        comment: editingCase.comment
       };
       await fetch(appsScriptUrl, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
       setTimeout(() => { setIsSaving(false); setEditingCase(null); fetchFromSheet(sheetUrl); }, 2000);
@@ -279,11 +289,9 @@ const App = () => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white font-sans relative overflow-hidden">
-        {/* Background Decorative Elements */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full"></div>
 
-        {/* Compact Login Container */}
         <div className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-800 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
           <div className="flex justify-center mb-6">
             <div className="p-4 bg-zinc-800 rounded-2xl border border-slate-700 shadow-inner">
@@ -487,6 +495,8 @@ const App = () => {
                 <tbody className="divide-y divide-slate-800/50">
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
                         const isExpanded = expandedCaseId === item.id; const isEditing = editingCase && editingCase.id === item.id;
+                        const isNewAudit = item.type === "ยังไม่ได้ตรวจ";
+
                         return (
                         <React.Fragment key={item.id}>
                             <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-950/20 shadow-inner' : 'hover:bg-slate-800/40'}`}>
@@ -502,13 +512,33 @@ const App = () => {
                             <tr className="bg-slate-900/40 animate-in slide-in-from-top-2 duration-300">
                                 <td colSpan={4} className="p-8 border-b border-slate-800 text-white">
                                 <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">Assessment Detail (ID: {item.questionnaireNo})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">แก้ไขคะแนน P:AB และ สรุปผล M</p></div></div>
+                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.questionnaireNo})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
-                                    {!isEditing ? (<button onClick={() => setEditingCase({...item})} className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl text-[10px] font-black uppercase border border-slate-700 transition-all"><Edit2 size={12} className="text-indigo-400"/> แก้ไขข้อมูล</button>) : (
-                                        <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} บันทึก</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
+                                    {!isEditing ? (
+                                        <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
+                                            <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-400"}/> 
+                                            {isNewAudit ? "เริ่มตรวจงานนี้" : "แก้ไขข้อมูล"}
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
                                     )}
                                     </div>
                                 </div>
+
+                                {isEditing && (
+                                    <div className="mb-8 p-6 bg-indigo-950/20 border border-indigo-500/20 rounded-[2rem] shadow-inner">
+                                        <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC)</div>
+                                        <div className="flex gap-4">
+                                            {['AC', 'BC'].map(t => (
+                                                <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/40' : 'bg-zinc-950 text-slate-500 border-slate-800 hover:border-slate-700'}`}>
+                                                    {t} MODE
+                                                </button>
+                                            ))}
+                                            {editingCase.type === "ยังไม่ได้ตรวจ" && <p className="text-rose-500 text-[10px] font-black uppercase self-center animate-pulse">*** กรุณาเลือก AC หรือ BC เพื่อบันทึกงาน</p>}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {item.audio && item.audio.includes('http') && (
                                     <div className="mb-8 p-6 bg-slate-950/50 border border-slate-800 rounded-[2rem] flex items-center justify-between shadow-inner">
                                         <div className="flex items-center gap-3">
