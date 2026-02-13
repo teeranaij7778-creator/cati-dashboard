@@ -9,7 +9,7 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - INTAGE BLACK & RED Edition
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล (Edit Mode)
- * แก้ไข: ปรับปรุงความแม่นยำของ rowIndex ในการส่งข้อมูลไปบันทึกที่ Google Sheets
+ * แก้ไข: แก้ไข ReferenceError และปรับปรุงระบบ Filter ให้สมบูรณ์
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -110,19 +110,19 @@ const App = () => {
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   
-  const [filterSup, setFilterSup] = useState('All');
+  // States for Multiple Filters
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedSups, setSelectedSups] = useState([]);
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
-  const [selectedMonth, setSelectedMonth] = useState('All');
+  
   const [showSync, setShowSync] = useState(getStorage('qc_sheet_url', '') === '' && DEFAULT_SHEET_URL === '');
   
   const [activeCell, setActiveCell] = useState({ agent: null, resultType: null });
   const [expandedCaseId, setExpandedCaseId] = useState(null);
   const [editingCase, setEditingCase] = useState(null); 
 
-  // --- Ensure Tailwind and Font are loaded for VS Code / Local ---
   useEffect(() => {
-    // 1. Load Thai Font
     if (!document.getElementById('thai-font-link')) {
       const link = document.createElement('link');
       link.id = 'thai-font-link';
@@ -130,16 +130,12 @@ const App = () => {
       link.href = 'https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap';
       document.head.appendChild(link);
     }
-
-    // 2. Load Tailwind CDN (Safety for environments without Tailwind)
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
       script.id = 'tailwind-cdn';
       script.src = 'https://cdn.tailwindcss.com';
       document.head.appendChild(script);
     }
-
-    // 3. Inject Custom Styles
     const styleId = 'custom-dashboard-styles';
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
@@ -147,13 +143,12 @@ const App = () => {
       style.innerHTML = `
         body { 
           font-family: 'Sarabun', sans-serif !important; 
-          background-color: #09090b; /* zinc-950 */
+          background-color: #09090b; 
           margin: 0;
         }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
       `;
       document.head.appendChild(style);
     }
@@ -188,6 +183,12 @@ const App = () => {
       let qNoIdx = headers.findIndex(h => h.toLowerCase().includes("questionnaire") || h.toLowerCase().includes("no.") || h.toLowerCase().includes("เลขชุด"));
       if (qNoIdx === -1) qNoIdx = 3; 
 
+      // ค้นหาตำแหน่งชื่อพนักงาน (Column K มักจะเป็น index 10)
+      const agentNameIdx = headers.findIndex(h => {
+        const s = h.toLowerCase();
+        return s.includes("ชื่อ") || s.includes("interviewer name") || s.includes("name");
+      });
+
       const idx = {
         month: getIdx("เดือน"), date: getIdx("วันที่สัมภาษณ์"), touchpoint: getIdx("TOUCH_POINT"), 
         type: getIdx("AC / BC"), sup: getIdx("Supervisor"), agent: getIdx("Interviewer"),
@@ -195,9 +196,8 @@ const App = () => {
         audio: getIdx("ไฟล์เสียง") 
       };
       
-      // การดึงข้อมูลแบบเก็บลำดับแถวที่ถูกต้อง
       const parsedData = allRows.slice(headerIdx + 1)
-        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // คำนวณเลขแถวใน Sheet (1-based index)
+        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
         .filter(({ row }) => {
           const agentCode = row[idx.agent]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
@@ -208,11 +208,17 @@ const App = () => {
           const matchedResult = RESULT_ORDER.find(opt => rawResult.includes(opt.split(':')[0].trim()));
           if (matchedResult) cleanResult = matchedResult;
           
+          const agentId = row[idx.agent]?.trim() || 'Unknown';
+          const foundName = agentNameIdx !== -1 ? row[agentNameIdx]?.trim() : row[10]?.trim();
+          const agentName = foundName || '';
+          const displayAgent = agentName && agentName !== agentId ? `${agentId} : ${agentName}` : agentId;
+          
           return {
             id: index, 
-            rowIndex: actualRowNumber, // ใช้เลขแถวที่แท้จริงจาก Google Sheets
+            rowIndex: actualRowNumber, 
             month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', 
-            agent: row[idx.agent] || 'Unknown', questionnaireNo: row[idx.questionnaireNo] || '-', 
+            agent: displayAgent, 
+            questionnaireNo: row[idx.questionnaireNo] || '-', 
             result: cleanResult, comment: row[idx.comment] || '',
             audio: row[idx.audio] || '', 
             touchpoint: row[idx.touchpoint] || 'N/A', supervisor: row[idx.sup] || 'N/A',
@@ -238,8 +244,6 @@ const App = () => {
         evaluations: editingCase.evaluations.map(e => e.value),
         comment: editingCase.comment
       };
-      
-      // ส่งข้อมูลไปยัง Apps Script (ใช้ mode: no-cors เพราะ Apps Script ไม่รองรับ CORS สำหรับการอ่าน Response โดยตรง)
       await fetch(appsScriptUrl, { 
         method: 'POST', 
         mode: 'no-cors', 
@@ -247,27 +251,25 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify(updateData) 
       });
-
-      // หน่วงเวลา 2 วินาทีเพื่อให้ฝั่ง Server บันทึกข้อมูลเสร็จสิ้นก่อนจะดึงข้อมูลใหม่
       setTimeout(() => { 
         setIsSaving(false); 
         setEditingCase(null); 
         fetchFromSheet(sheetUrl); 
       }, 2000);
-      
     } catch (err) { 
       alert("ไม่สามารถเชื่อมต่อกับระบบแก้ไขข้อมูลได้: " + err.message); 
       setIsSaving(false); 
     }
   };
 
-  const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))], [data]);
+  const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))].sort(), [data]);
   const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisor).filter(s => s !== 'N/A'))].sort(), [data]);
   const availableAgents = useMemo(() => {
     let filtered = data;
-    if (filterSup !== 'All') filtered = filtered.filter(d => d.supervisor === filterSup);
+    if (selectedSups.length > 0) filtered = filtered.filter(d => selectedSups.includes(d.supervisor));
+    if (selectedMonths.length > 0) filtered = filtered.filter(d => selectedMonths.includes(d.month));
     return [...new Set(filtered.map(d => d.agent).filter(a => a !== 'Unknown'))].sort();
-  }, [data, filterSup]);
+  }, [data, selectedSups, selectedMonths]);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -275,12 +277,12 @@ const App = () => {
                            item.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.questionnaireNo.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesResult = selectedResults.length === 0 || selectedResults.includes(item.result);
-      const matchesSup = filterSup === 'All' || item.supervisor === filterSup;
+      const matchesSup = selectedSups.length === 0 || selectedSups.includes(item.supervisor);
       const matchesAgent = selectedAgents.length === 0 || selectedAgents.includes(item.agent);
-      const matchesMonth = selectedMonth === 'All' || item.month === selectedMonth;
+      const matchesMonth = selectedMonths.length === 0 || selectedMonths.includes(item.month);
       return matchesSearch && matchesResult && matchesSup && matchesAgent && matchesMonth;
     });
-  }, [data, searchTerm, selectedResults, filterSup, selectedAgents, selectedMonth]);
+  }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths]);
 
   const agentSummary = useMemo(() => {
     const summaryMap = {};
@@ -295,17 +297,25 @@ const App = () => {
     return Object.values(summaryMap).sort((a, b) => b.total - a.total);
   }, [filteredData]);
 
+  // FIX: Define chartData and detailLogs which were missing
   const chartData = useMemo(() => {
     const total = filteredData.length;
     return RESULT_ORDER.map(key => ({ 
-      name: key, displayLabel: formatResultDisplay(key), 
+      name: key, 
+      displayLabel: formatResultDisplay(key), 
       count: filteredData.filter(d => d.result === key).length, 
       percent: total > 0 ? ((filteredData.filter(d => d.result === key).length / total) * 100).toFixed(1) : 0, 
       color: getResultColor(key) 
     }));
   }, [filteredData]);
 
-  const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : filteredData, [filteredData, activeCell]);
+  const detailLogs = useMemo(() => {
+    if (activeCell.agent && activeCell.resultType) {
+      return filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType);
+    }
+    return filteredData;
+  }, [filteredData, activeCell]);
+
   const passRate = useMemo(() => {
     if (filteredData.length === 0) return 0;
     const passCount = filteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length;
@@ -317,9 +327,17 @@ const App = () => {
     else { setActiveCell({ agent: agentName, resultType: type }); document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' }); }
   };
 
+  const handleToggleFilter = (item, selectedList, setSelectedFn) => {
+    if (selectedList.includes(item)) {
+      setSelectedFn(selectedList.filter(i => i !== item));
+    } else {
+      setSelectedFn([...selectedList, item]);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white font-sans">
         <div className="bg-zinc-900 p-10 rounded-[2.5rem] border border-zinc-800 w-full max-w-sm text-center shadow-2xl">
           <div className="flex justify-center mb-8"><IntageLogo className="scale-125" /></div>
           <h2 className="text-white font-black uppercase text-xs mb-8 tracking-widest italic">CATI CES 2026 DASHBOARD</h2>
@@ -334,56 +352,107 @@ const App = () => {
     );
   }
 
+  // Helper component for filter sections
+  const FilterSection = ({ title, items, selectedItems, onToggle, onSelectAll, onClear, maxH = "max-h-40" }) => (
+    <div className="space-y-2">
+        <div className="flex items-center justify-between pl-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{title}</label>
+            <div className="flex gap-2">
+                <button onClick={onSelectAll} className="text-[9px] font-bold text-zinc-500 hover:text-red-500 transition-colors">เลือกทั้งหมด</button>
+                <div className="w-[1px] h-2 bg-zinc-800 self-center"></div>
+                <button onClick={onClear} className="text-[9px] font-bold text-zinc-500 hover:text-red-500 transition-colors">ล้าง</button>
+            </div>
+        </div>
+        <div className={`bg-zinc-800/50 border border-zinc-800/50 rounded-2xl p-2 overflow-y-auto custom-scrollbar ${maxH}`}>
+            {items.map(item => (
+                <div 
+                    key={item} 
+                    onClick={() => onToggle(item)} 
+                    className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 transition-all ${selectedItems.includes(item) ? 'bg-zinc-700 text-white shadow-lg' : 'hover:bg-zinc-800/50 text-zinc-500'}`}
+                >
+                    {selectedItems.includes(item) ? <CheckSquare size={14} className="text-red-500 shrink-0" /> : <Square size={14} className="shrink-0" />}
+                    <span className="truncate">{formatResultDisplay(item)}</span>
+                </div>
+            ))}
+            {items.length === 0 && <div className="p-4 text-center text-[10px] text-zinc-600 italic">ไม่มีข้อมูลให้เลือก</div>}
+        </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-zinc-100">
+    <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-zinc-100 font-sans">
       
       {/* Sidebar Panel */}
       <div className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsFilterSidebarOpen(false)} />
       <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-zinc-900 shadow-2xl transform transition-transform duration-300 ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto border-l border-zinc-800 p-6`}>
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-800">
-             <div className="flex items-center gap-2"><div className="p-2 bg-red-600 rounded-lg text-white"><Filter size={20} /></div><h3 className="font-black text-white uppercase italic tracking-tight">ตัวกรองข้อมูล</h3></div>
-             <button onClick={() => setIsFilterSidebarOpen(false)}><X size={20} /></button>
+             <div className="flex items-center gap-2"><div className="p-2 bg-red-600 rounded-lg text-white shadow-lg shadow-red-900/20"><Filter size={20} /></div><h3 className="font-black text-white uppercase italic tracking-tight">ตัวกรองข้อมูล</h3></div>
+             <button onClick={() => setIsFilterSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors"><X size={20} /></button>
           </div>
-          <div className="space-y-6">
-             <button onClick={() => { setFilterSup('All'); setSelectedAgents([]); setSelectedResults([]); setSelectedMonth('All'); setActiveCell({ agent: null, resultType: null }); }} className="w-full py-2 text-xs font-black text-red-500 bg-red-600/10 hover:bg-red-600/20 rounded-xl border border-red-600/20 uppercase tracking-widest transition-colors">Reset Filters</button>
-             <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest pl-2">เดือน (Month)</label><select className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl text-xs font-bold outline-none text-white" value={selectedMonth} onChange={(e)=>setSelectedMonth(e.target.value)}><option value="All">ทุกเดือน</option>{availableMonths.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-             <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest pl-2">Supervisor</label><select className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl text-xs font-bold outline-none text-white" value={filterSup} onChange={(e) => { setFilterSup(e.target.value); setSelectedAgents([]); }}><option value="All">ทุก Supervisor</option>{availableSups.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-             <div className="space-y-2">
-                 <div className="flex justify-between pl-2 mb-1"><label className="text-[10px] font-black uppercase tracking-widest">พนักงานสัมภาษณ์</label><button onClick={() => setSelectedAgents(availableAgents)} className="text-[9px] text-zinc-500 hover:text-white">เลือกทั้งหมด</button></div>
-                 <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-2 max-h-48 overflow-y-auto custom-scrollbar">
-                     {availableAgents.map(agent => (
-                         <div key={agent} onClick={() => setSelectedAgents(prev => prev.includes(agent) ? prev.filter(a => a !== agent) : [...prev, agent])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 ${selectedAgents.includes(agent) ? 'bg-zinc-700 text-white' : 'hover:bg-zinc-800/50 text-zinc-400'}`}>
-                           {selectedAgents.includes(agent) ? <CheckSquare size={14} className="text-red-500" /> : <Square size={14} />} <span className="truncate">{agent}</span>
-                         </div>
-                     ))}
-                 </div>
-             </div>
-             <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest pl-2">ผลการสัมภาษณ์</label>
-                 <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-2 max-h-48 overflow-y-auto custom-scrollbar">
-                     {RESULT_ORDER.map(res => (
-                         <div key={res} onClick={() => setSelectedResults(prev => prev.includes(res) ? prev.filter(r => r !== res) : [...prev, res])} className={`flex items-start gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 ${selectedResults.includes(res) ? 'bg-zinc-700 text-white' : 'hover:bg-zinc-800/50 text-zinc-400'}`}>
-                           {selectedResults.includes(res) ? <CheckSquare size={14} className="text-red-500 mt-0.5" /> : <Square size={14} className="mt-0.5" />}
-                           <span style={{ color: selectedResults.includes(res) ? getResultColor(res) : undefined }}>{formatResultDisplay(res)}</span>
-                         </div>
-                     ))}
-                 </div>
-             </div>
+          <div className="space-y-8">
+             <button 
+                onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setActiveCell({ agent: null, resultType: null }); }} 
+                className="w-full py-2.5 text-xs font-black text-red-500 bg-red-600/10 hover:bg-red-600/20 rounded-xl border border-red-600/20 uppercase tracking-widest transition-all shadow-lg shadow-red-900/5"
+             >
+                Reset All Filters
+             </button>
+
+             {/* เดือน Filter */}
+             <FilterSection 
+                title="เดือน (Month)" 
+                items={availableMonths} 
+                selectedItems={selectedMonths} 
+                onToggle={(item) => handleToggleFilter(item, selectedMonths, setSelectedMonths)}
+                onSelectAll={() => setSelectedMonths(availableMonths)}
+                onClear={() => setSelectedMonths([])}
+             />
+
+             {/* Supervisor Filter */}
+             <FilterSection 
+                title="Supervisor" 
+                items={availableSups} 
+                selectedItems={selectedSups} 
+                onToggle={(item) => handleToggleFilter(item, selectedSups, setSelectedSups)}
+                onSelectAll={() => setSelectedSups(availableSups)}
+                onClear={() => setSelectedSups([])}
+             />
+
+             {/* พนักงาน Filter */}
+             <FilterSection 
+                title="พนักงาน (ID : ชื่อ)" 
+                items={availableAgents} 
+                selectedItems={selectedAgents} 
+                onToggle={(item) => handleToggleFilter(item, selectedAgents, setSelectedAgents)}
+                onSelectAll={() => setSelectedAgents(availableAgents)}
+                onClear={() => setSelectedAgents([])}
+                maxH="max-h-60"
+             />
+
+             {/* ผลสัมภาษณ์ Filter */}
+             <FilterSection 
+                title="ผลการสัมภาษณ์" 
+                items={RESULT_ORDER} 
+                selectedItems={selectedResults} 
+                onToggle={(item) => handleToggleFilter(item, selectedResults, setSelectedResults)}
+                onSelectAll={() => setSelectedResults(RESULT_ORDER)}
+                onClear={() => setSelectedResults([])}
+                maxH="max-h-60"
+             />
           </div>
        </aside>
 
       <div className="max-w-7xl mx-auto space-y-6">
         <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-zinc-900 p-6 rounded-[2.5rem] shadow-xl border border-zinc-800">
-          <div className="flex items-center gap-6"><div className="p-3 bg-zinc-800 rounded-2xl border border-zinc-700"><IntageLogo /></div>
+          <div className="flex items-center gap-6"><div className="p-3 bg-zinc-800 rounded-2xl border border-zinc-700 shadow-inner"><IntageLogo /></div>
             <div>
               <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-red-600" />}</h1>
               <div className="text-white text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div> CONNECTED: {data.length} CASES</> : "WAITING FOR CONNECTION"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || filterSup !== 'All' || selectedAgents.length > 0 ? 'bg-red-600 border-red-500 text-white shadow-lg' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`}><Filter size={16} /> ตัวกรอง</button>
+            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-900/40 translate-y-[-2px]' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`}><Filter size={16} /> ตัวกรอง</button>
             <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-zinc-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>
-            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-zinc-800 rounded-2xl hover:text-red-500 transition-colors"><User size={20} /></button>
+            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-zinc-800 rounded-2xl hover:text-red-500 transition-colors border border-zinc-800"><User size={20} /></button>
           </div>
         </header>
 
@@ -404,16 +473,15 @@ const App = () => {
                 ))}
             </div>
 
-            {/* Matrix Table */}
             <div className="bg-zinc-900 rounded-[3rem] shadow-2xl border border-zinc-800 overflow-hidden">
                 <div className="p-8 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-                    <div><h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight"><TrendingUp size={24} className="text-red-600" /> สรุปคุณภาพพนักงาน x ผลสัมภาษณ์</h3><p className="text-[9px] text-zinc-100 font-black uppercase mt-1 italic tracking-widest flex items-center gap-1 underline decoration-red-600/30">คลิกที่ตัวเลข เพื่อดูรายละเอียดด้านล่าง</p></div>
+                    <div><h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight"><TrendingUp size={24} className="text-red-600" /> สรุปคุณภาพพนักงาน (ID : ชื่อ) x ผลสัมภาษณ์</h3><p className="text-[9px] text-zinc-100 font-black uppercase mt-1 italic tracking-widest flex items-center gap-1 underline decoration-red-600/30">คลิกที่ตัวเลข เพื่อดูรายละเอียดด้านล่าง</p></div>
                 </div>
                 <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                     <table className="w-full text-left text-sm border-separate border-spacing-0 min-w-[1200px]">
                         <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-white text-[10px] uppercase tracking-widest border-b border-zinc-800 shadow-md">
                             <tr>
-                                <th rowSpan="2" className="px-8 py-6 border-b border-zinc-800 border-r border-zinc-800 bg-zinc-900 w-64">พนักงานสัมภาษณ์</th>
+                                <th rowSpan="2" className="px-8 py-6 border-b border-zinc-800 border-r border-zinc-800 bg-zinc-900 w-64">พนักงานสัมภาษณ์ (ID : ชื่อ)</th>
                                 <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-zinc-800 bg-zinc-900/40 text-red-600 text-[11px] font-black italic uppercase">สรุปผลการสัมภาษณ์ละเอียด</th>
                                 <th rowSpan="2" className="px-8 py-6 text-center bg-zinc-800 text-white border-b border-zinc-800 border-l border-zinc-800">รวม</th>
                             </tr>
@@ -442,21 +510,20 @@ const App = () => {
                 </div>
             </div>
 
-            {/* List and Details */}
             <div id="detail-section" className="bg-zinc-900 rounded-[3rem] shadow-2xl border border-zinc-800 overflow-hidden scroll-mt-6">
                 <div className="p-8 border-b border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="space-y-1">
                         <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-2 italic"><MessageSquare size={16} className="text-red-600" /> ข้อมูลรายเคสแบบละเอียด</h3>
                         {activeCell.agent && (
-                            <div className="flex items-center gap-2 mt-2"><span className="text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-lg shadow-lg uppercase italic animate-pulse">FILTERING: {activeCell.agent}</span><button onClick={() => setActiveCell({ agent: null, resultType: null })}><X size={12}/></button></div>
+                            <div className="flex items-center gap-2 mt-2"><span className="text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-lg shadow-lg uppercase italic animate-pulse">FILTERING: {activeCell.agent}</span><button onClick={() => setActiveCell({ agent: null, resultType: null })} className="text-zinc-500 hover:text-white transition-colors"><X size={12}/></button></div>
                         )}
                     </div>
-                    <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-zinc-800/50 border border-zinc-800 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-red-600 outline-none text-white" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
+                    <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-zinc-800/50 border border-zinc-800 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-red-600 outline-none text-white shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
                 </div>
                 <div className="overflow-auto max-h-[1000px] custom-scrollbar">
                     <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
                     <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-zinc-800 font-black text-white uppercase tracking-widest">
-                        <tr><th className="px-8 py-5 border-r border-zinc-800/30">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-zinc-800/30">พนักงาน</th><th className="px-4 py-5 text-center border-r border-zinc-800/30">ผลสรุป</th><th className="px-8 py-5">QC Comment & Recording</th></tr>
+                        <tr><th className="px-8 py-5 border-r border-zinc-800/30">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-zinc-800/30">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-zinc-800/30">ผลสรุป</th><th className="px-8 py-5">QC Comment & Recording</th></tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800/30">
                         {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
@@ -464,10 +531,10 @@ const App = () => {
                           const isEditing = editingCase && editingCase.id === item.id;
                           return (
                             <React.Fragment key={item.id}>
-                              <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-zinc-800' : 'hover:bg-zinc-800/40'}`}>
+                              <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-zinc-800/50 shadow-inner' : 'hover:bg-zinc-800/40'}`}>
                                   <td className="px-8 py-6 border-r border-zinc-800/20"><div className="font-black text-white">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 w-fit"><Hash size={10} className="text-red-600" /><span className="text-[11px] font-black text-white">{item.questionnaireNo}</span></div></td>
-                                  <td className="px-8 py-6 border-r border-zinc-800/20"><div className="font-black text-white text-sm group-hover:text-red-500 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div><div className="text-[9px] text-zinc-500 font-bold mt-0.5 italic">SUP: {item.supervisor} &bull; {item.touchpoint}</div></td>
-                                  <td className="px-4 py-6 text-center border-r border-zinc-800/20"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
+                                  <td className="px-8 py-6 border-r border-zinc-800/20"><div className="font-black text-white text-sm group-hover:text-red-500 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronRight size={14} className="text-zinc-700" />}</div><div className="text-[9px] text-zinc-500 font-bold mt-0.5 italic">SUP: {item.supervisor} &bull; {item.touchpoint}</div></td>
+                                  <td className="px-4 py-6 text-center border-r border-zinc-800/20"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
                                   <td className="px-8 py-6">
                                       <p className="text-zinc-400 italic max-w-sm truncate group-hover:text-white transition-colors">{item.comment ? `"${item.comment}"` : '-'}</p>
                                       {item.audio && item.audio.includes('http') && (
@@ -491,7 +558,6 @@ const App = () => {
                                         )}
                                       </div>
                                     </div>
-
                                     {item.audio && item.audio.includes('http') && (
                                         <div className="mb-8 p-6 bg-zinc-950/50 border border-zinc-800 rounded-[2rem] flex items-center justify-between shadow-inner">
                                             <div className="flex items-center gap-3">
@@ -506,7 +572,6 @@ const App = () => {
                                             </a>
                                         </div>
                                     )}
-
                                     <div className="mb-8 p-6 bg-zinc-900/80 border border-zinc-800 rounded-[2rem] shadow-inner">
                                       <div className="flex items-center gap-2 mb-4 text-amber-500 font-black text-[10px] uppercase italic tracking-widest"><Star size={16} /> สรุปผลการสัมภาษณ์แบบละเอียด (Column M)</div>
                                       {isEditing ? (<div className="relative"><select className="w-full p-4 bg-zinc-950 border border-red-600/30 rounded-2xl text-[11px] font-black text-white focus:ring-2 focus:ring-red-600 outline-none appearance-none shadow-lg shadow-red-900/10" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-zinc-100 bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">{item.result}</p>)}
@@ -517,7 +582,7 @@ const App = () => {
                                           <p className="text-[9px] font-black text-zinc-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
                                           {isEditing ? (
                                             <div className="relative">
-                                                <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select>
+                                                <select className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-red-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select>
                                                 <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
                                             </div>
                                           ) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-red-500' : 'text-zinc-200'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
@@ -541,8 +606,6 @@ const App = () => {
           </div>
         ) : (!loading && <div className="bg-zinc-900 rounded-[4rem] border-2 border-dashed border-zinc-800 py-32 text-center shadow-inner"><Database size={40} className="text-zinc-600 mx-auto mb-8" /><h2 className="text-2xl font-black text-white uppercase italic tracking-widest">Waiting for Signal</h2><p className="text-zinc-100 text-xs mt-3 max-w-sm mx-auto font-black uppercase tracking-widest italic leading-relaxed">กรุณากดปุ่ม "ตั้งค่า" ด้านบน และวางลิงก์ CSV จาก Google Sheets</p></div>)}
       </div>
-
-      {/* Sync Modal */}
       {(showSync || error) && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4">
             <div className="bg-zinc-900 w-full max-w-2xl rounded-[3rem] p-10 border border-zinc-800 shadow-2xl relative animate-in zoom-in duration-300">
