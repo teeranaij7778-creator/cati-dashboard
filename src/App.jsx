@@ -4,22 +4,21 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - INTAGE BLACK & RED Edition
- * ระบบวิเคราะห์ผลการตรวจ QC งานสัมภาษณ์ (CATI)
+ * ระบบวิเคราะห์ผลการตรวจ QC งานสัมภาษณ์ (CATI) พร้อมระบบ Auto-Refresh ทุก 5 นาที
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
 
-// Updated COLORS based on request
 const COLORS = {
-  'ดีเยี่ยม': '#3B82F6',     // Blue 500
-  'ผ่านเกณฑ์': '#10B981',   // Emerald 500 (Green)
-  'ควรปรับปรุง': '#EF4444', // Red 500
-  'พบข้อผิดพลาด': '#EF4444', // Red 500
-  'ไม่ผ่านเกณฑ์': '#B91C1C', // Red 700 (Darker red for Fail)
+  'ดีเยี่ยม': '#3B82F6',     
+  'ผ่านเกณฑ์': '#10B981',   
+  'ควรปรับปรุง': '#EF4444', 
+  'พบข้อผิดพลาด': '#EF4444', 
+  'ไม่ผ่านเกณฑ์': '#B91C1C', 
 };
 
 const RESULT_ORDER = ['ดีเยี่ยม', 'ผ่านเกณฑ์', 'ควรปรับปรุง', 'พบข้อผิดพลาด', 'ไม่ผ่านเกณฑ์'];
@@ -61,7 +60,6 @@ const parseCSV = (text) => {
 };
 
 const App = () => {
-  // --- States ---
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [inputUser, setInputUser] = useState('');
   const [inputPass, setInputPass] = useState('');
@@ -72,18 +70,17 @@ const App = () => {
   const [sheetUrl, setSheetUrl] = useState(localStorage.getItem('qc_sheet_url') || DEFAULT_SHEET_URL);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   
   const [filterSup, setFilterSup] = useState('All');
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
-  const [selectedYear, setSelectedYear] = useState('All');
   const [selectedMonth, setSelectedMonth] = useState('All');
   const [showSync, setShowSync] = useState(!localStorage.getItem('qc_sheet_url') && !DEFAULT_SHEET_URL);
   
   const [activeCell, setActiveCell] = useState({ agent: null, resultType: null });
 
-  // Load Tailwind and Fonts
   useEffect(() => {
     if (!document.getElementById('thai-font-link')) {
       const fontLink = document.createElement('link');
@@ -114,10 +111,21 @@ const App = () => {
     }
   }, []);
 
+  // --- Auto-Refresh Logic (Every 5 Minutes) ---
   useEffect(() => {
+    let intervalId;
     if (isAuthenticated && sheetUrl && sheetUrl.includes('http')) {
       fetchFromSheet(sheetUrl);
+      
+      // Set up interval to refresh every 5 minutes (300,000 ms)
+      intervalId = setInterval(() => {
+        console.log("Auto-refreshing data from Google Sheets...");
+        fetchFromSheet(sheetUrl);
+      }, 300000);
     }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [sheetUrl, isAuthenticated]);
 
   const handleLogin = (e) => {
@@ -141,7 +149,9 @@ const App = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(finalUrl);
+      // Append timestamp to URL to bypass potential browser cache
+      const fetchUrl = `${finalUrl}&t=${new Date().getTime()}`;
+      const response = await fetch(fetchUrl);
       if (!response.ok) throw new Error("ไม่สามารถเข้าถึงไฟล์ได้");
       const csvText = await response.text();
       const allRows = parseCSV(csvText);
@@ -180,6 +190,7 @@ const App = () => {
           };
         });
       setData(parsedData);
+      setLastUpdated(new Date().toLocaleTimeString('th-TH'));
       localStorage.setItem('qc_sheet_url', finalUrl);
       setShowSync(false);
     } catch (err) { setError(err.message); } finally { setLoading(false); }
@@ -400,8 +411,15 @@ const App = () => {
                 QC REPORT 2026
                 {loading && <RefreshCw size={18} className="animate-spin text-red-600" />}
               </h1>
-              <div className="text-zinc-500 text-[10px] font-black flex items-center gap-2 uppercase tracking-widest mt-0.5">
-                {data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div> CONNECTED: {data.length} CASES</> : "WAITING FOR CONNECTION"}
+              <div className="flex flex-col gap-1 mt-1">
+                <div className="text-zinc-500 text-[10px] font-black flex items-center gap-2 uppercase tracking-widest">
+                  {data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div> CONNECTED: {data.length} CASES</> : "WAITING FOR CONNECTION"}
+                </div>
+                {lastUpdated && (
+                  <div className="text-zinc-600 text-[9px] font-bold flex items-center gap-1 uppercase tracking-widest">
+                    <Clock size={10} className="text-red-900" /> อัปเดตล่าสุด: {lastUpdated} (Autoทุก 5 นาที)
+                  </div>
+                )}
               </div>
             </div>
           </div>
