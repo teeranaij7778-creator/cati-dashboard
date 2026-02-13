@@ -9,11 +9,11 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: ปรับปรุงหน้า Login ให้สวยงามทันสมัยสอดคล้องกับ Dashboard
+ * - อัปเดต: ปรับขนาดหน้า Login ให้กะทัดรัด (Compact size)
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxhCpZV3_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxhCpZV3y0edsQonSONcmwupdT9wzaiiLG54xIhAQDEEorbkDangqcSb4lIadq4yHnR/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
@@ -98,12 +98,11 @@ const App = () => {
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   
-  // States for Multiple Filters
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedSups, setSelectedSups] = useState([]);
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
-  const [selectedTypes, setSelectedTypes] = useState([]); // AC / BC Filter
+  const [selectedTypes, setSelectedTypes] = useState([]); 
   
   const [showSync, setShowSync] = useState(getStorage('qc_sheet_url', '') === '' && DEFAULT_SHEET_URL === '');
   
@@ -237,6 +236,11 @@ const App = () => {
     });
   }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths, selectedTypes]);
 
+  const totalWorkByMonthOnly = useMemo(() => {
+    if (selectedMonths.length === 0) return data.length;
+    return data.filter(item => selectedMonths.includes(item.month)).length;
+  }, [data, selectedMonths]);
+
   const agentSummary = useMemo(() => {
     const summaryMap = {};
     filteredData.forEach(item => {
@@ -279,49 +283,50 @@ const App = () => {
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full"></div>
 
-        <div className="bg-zinc-900/80 backdrop-blur-xl p-10 rounded-[3rem] border border-slate-800 w-full max-w-md text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
-          <div className="flex justify-center mb-10">
-            <div className="p-5 bg-zinc-800 rounded-[2rem] border border-slate-700 shadow-inner">
-                <IntageLogo className="scale-150" />
+        {/* Compact Login Container */}
+        <div className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-800 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-zinc-800 rounded-2xl border border-slate-700 shadow-inner">
+                <IntageLogo className="scale-110" />
             </div>
           </div>
-          <div className="space-y-2 mb-10">
-            <h2 className="text-white font-black uppercase text-sm tracking-[0.3em] italic">CATI CES 2026</h2>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
+          <div className="space-y-1 mb-8">
+            <h2 className="text-white font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2>
+            <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
           </div>
           
-          <form onSubmit={(e) => { e.preventDefault(); if(inputUser==='Admin'&&inputPass==='1234') setIsAuthenticated(true); else setLoginError('Login Failed'); }} className="space-y-6 text-left">
-            <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
+          <form onSubmit={(e) => { e.preventDefault(); if(inputUser==='Admin'&&inputPass==='1234') setIsAuthenticated(true); else setLoginError('Login Failed'); }} className="space-y-4 text-left">
+            <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-zinc-950 border border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-white transition-all font-bold placeholder:text-slate-700" placeholder="Enter username" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="Username" />
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label>
+            <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label>
                 <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-zinc-950 border border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-white transition-all font-bold placeholder:text-slate-700" placeholder="••••••••" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="••••••••" />
                 </div>
             </div>
 
             {loginError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 py-3 rounded-xl flex items-center justify-center gap-2 animate-bounce">
-                    <AlertCircle size={14} className="text-rose-500" />
-                    <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest">Authentication Failed</p>
+                <div className="bg-rose-500/10 border border-rose-500/20 py-2 rounded-lg flex items-center justify-center gap-2">
+                    <AlertCircle size={12} className="text-rose-500" />
+                    <p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p>
                 </div>
             )}
 
-            <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-900/40 flex items-center justify-center gap-3 active:scale-95 italic">
-                <LogIn size={20} />
+            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-95 italic text-xs">
+                <LogIn size={16} />
                 Access System
             </button>
           </form>
 
-          <div className="mt-12 pt-8 border-t border-slate-800/50">
-            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
+          <div className="mt-8 pt-6 border-t border-slate-800/50">
+            <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
           </div>
         </div>
       </div>
@@ -385,10 +390,10 @@ const App = () => {
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-                { label: 'งานที่เลือกมาดู (ตามตัวกรอง)', value: filteredData.length, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-slate-800' },
+                { label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', value: totalWorkByMonthOnly, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-slate-800' },
                 { 
                   label: 'จำนวนที่ตรวจแล้ว (AC/BC ตาม Filter)', 
-                  value: `${totalAuditedFiltered} (${filteredData.length > 0 ? ((totalAuditedFiltered / filteredData.length) * 100).toFixed(1) : 0}%)`, 
+                  value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, 
                   icon: Database, 
                   color: 'text-indigo-400', 
                   bg: 'bg-indigo-950/20 border-indigo-900/30' 
@@ -521,7 +526,7 @@ const App = () => {
                                     {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
                                     <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-indigo-600/50 ring-1 ring-indigo-600/20' : 'border-slate-800'}`}>
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
-                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
+                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
                                     </div>
                                     ))}
                                 </div>
