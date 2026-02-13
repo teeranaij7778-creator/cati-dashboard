@@ -9,11 +9,11 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: เพิ่มฟีเจอร์ "เริ่มตรวจงานใหม่" และส่งค่า AC/BC กลับไปยัง Sheet
+ * - อัปเดต: แก้ไข URL และระบบการส่งค่า AC/BC ไปยัง Google Sheets
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuGjbG-uFkiwzW7C1OOBzzg2h7XysLZKRxmpcKQcE-YJD8qtQATDz-7Jg4XjLtJGfU/exechttps://script.google.com/macros/s/AKfycbwuGjbG-uFkiwzW7C1OOBzzg2h7XysLZKRxmpcKQcE-YJD8qtQATDz-7Jg4XjLtJGfU/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwuGjbG-uFkiwzW7C1OOBzzg2h7XysLZKRxmpcKQcE-YJD8qtQATDz-7Jg4XjLtJGfU/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
@@ -216,9 +216,25 @@ const App = () => {
         evaluations: editingCase.evaluations.map(e => e.value), 
         comment: editingCase.comment
       };
-      await fetch(appsScriptUrl, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
-      setTimeout(() => { setIsSaving(false); setEditingCase(null); fetchFromSheet(sheetUrl); }, 2000);
-    } catch (err) { alert(err.message); setIsSaving(false); }
+      
+      // POST to Google Apps Script
+      await fetch(appsScriptUrl, { 
+        method: 'POST', 
+        mode: 'no-cors', 
+        cache: 'no-cache', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(updateData) 
+      });
+      
+      setTimeout(() => { 
+        setIsSaving(false); 
+        setEditingCase(null); 
+        fetchFromSheet(sheetUrl); 
+      }, 2000);
+    } catch (err) { 
+      alert(err.message); 
+      setIsSaving(false); 
+    }
   };
 
   // --- Analytical Calculations ---
