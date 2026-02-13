@@ -265,16 +265,16 @@ const App = () => {
           <p className="text-center text-red-500 text-xs font-bold uppercase tracking-widest mb-10">QC Report</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2 pl-2">Username</label>
+              <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest ml-2 pl-2">Username</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
                 <input type="text" value={inputUser} onChange={(e) => setInputUser(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-zinc-800 border border-zinc-700 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-red-600 transition-all" placeholder="Admin" />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-2 pl-2">Password</label>
+              <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest ml-2 pl-2">Password</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
                 <input type="password" value={inputPass} onChange={(e) => setInputPass(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-zinc-800 border border-zinc-700 rounded-2xl font-bold text-white outline-none focus:ring-2 focus:ring-red-600 transition-all" placeholder="••••" />
               </div>
             </div>
@@ -283,7 +283,7 @@ const App = () => {
               เข้าสู่ระบบ <LogIn size={18} className="group-hover:translate-x-1 transition-transform"/>
             </button>
           </form>
-          <p className="mt-10 text-center text-[9px] text-zinc-600 font-bold uppercase tracking-tighter italic opacity-60">Authorized Personnel Only • Powered by INTAGE</p>
+          <p className="mt-10 text-center text-[9px] text-zinc-300 font-bold uppercase tracking-tighter italic opacity-60">Authorized Personnel Only • Powered by INTAGE</p>
         </div>
       </div>
     );
@@ -301,42 +301,42 @@ const App = () => {
                    <div className="p-2 bg-red-600 rounded-lg text-white shadow-lg shadow-red-900/20"><Filter size={20} /></div>
                    <div>
                        <h3 className="font-black text-white uppercase italic tracking-tight">ตัวกรองข้อมูล</h3>
-                       <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Filter Settings</p>
+                       <p className="text-[10px] text-zinc-100 font-bold uppercase tracking-widest">Filter Settings</p>
                    </div>
                 </div>
-                <button onClick={() => setIsFilterSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"><X size={20} /></button>
+                <button onClick={() => setIsFilterSidebarOpen(false)} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-100 transition-colors"><X size={20} /></button>
              </div>
              <div className="space-y-6">
                 <button onClick={() => { setFilterSup('All'); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setSelectedMonth('All'); setActiveCell({ agent: null, resultType: null }); }} className="w-full py-2 text-xs font-black text-red-500 bg-red-600/10 hover:bg-red-600/20 rounded-xl transition-colors border border-red-600/20">RESET ALL FILTERS</button>
                 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest pl-2">เดือน (Month)</label>
+                    <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest pl-2">เดือน (Month)</label>
                     <div className="relative">
                       <select className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-red-600 appearance-none" value={selectedMonth} onChange={(e)=>setSelectedMonth(e.target.value)}>
                           <option value="All">ทุกเดือน</option>
                           {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
                       </select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest pl-2">Supervisor</label>
+                    <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest pl-2">Supervisor</label>
                     <div className="relative">
                       <select className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-red-600 appearance-none" value={filterSup} onChange={(e) => { setFilterSup(e.target.value); setSelectedAgents([]); }}>
                           <option value="All">ทุก Supervisor</option>
                           {availableSups.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                      <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                     </div>
                 </div>
 
                 {/* Multi-Select Result Filter */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between pl-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">ผลการสัมภาษณ์</label>
+                      <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest">ผลการสัมภาษณ์</label>
                       <div className="flex gap-2">
-                        <button onClick={() => setSelectedResults(RESULT_ORDER)} className="text-[9px] font-bold text-zinc-400 hover:text-white transition-colors">เลือกทั้งหมด</button>
+                        <button onClick={() => setSelectedResults(RESULT_ORDER)} className="text-[9px] font-bold text-zinc-100 hover:text-white transition-colors">เลือกทั้งหมด</button>
                         <button onClick={() => setSelectedResults([])} className="text-[9px] font-bold text-red-500/70 hover:text-red-500 transition-colors">ล้าง</button>
                       </div>
                     </div>
@@ -344,8 +344,8 @@ const App = () => {
                         {RESULT_ORDER.map(res => {
                         const isSelected = selectedResults.includes(res);
                         return (
-                            <div key={res} onClick={() => setSelectedResults(prev => isSelected ? prev.filter(r => r !== res) : [...prev, res])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors mb-1 ${isSelected ? 'bg-zinc-700 ring-1 ring-zinc-600' : 'hover:bg-zinc-800/50 text-zinc-500'}`}>
-                            {isSelected ? <CheckSquare size={16} className="text-red-500" /> : <Square size={16} className="text-zinc-600" />}
+                            <div key={res} onClick={() => setSelectedResults(prev => isSelected ? prev.filter(r => r !== res) : [...prev, res])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold transition-colors mb-1 ${isSelected ? 'bg-zinc-700 ring-1 ring-zinc-600' : 'hover:bg-zinc-800/50 text-zinc-300'}`}>
+                            {isSelected ? <CheckSquare size={16} className="text-red-500" /> : <Square size={16} className="text-zinc-500" />}
                             <span style={{ color: isSelected ? COLORS[res] : undefined }}>{res}</span>
                             </div>
                         );
@@ -356,9 +356,9 @@ const App = () => {
                 {/* Multi-Select Type Filter */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between pl-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">ประเภทงาน</label>
+                      <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest">ประเภทงาน</label>
                       <div className="flex gap-2">
-                        <button onClick={() => setSelectedTypes(availableTypes)} className="text-[9px] font-bold text-zinc-400 hover:text-white transition-colors">เลือกทั้งหมด</button>
+                        <button onClick={() => setSelectedTypes(availableTypes)} className="text-[9px] font-bold text-zinc-100 hover:text-white transition-colors">เลือกทั้งหมด</button>
                         <button onClick={() => setSelectedTypes([])} className="text-[9px] font-bold text-red-500/70 hover:text-red-500 transition-colors">ล้าง</button>
                       </div>
                     </div>
@@ -366,20 +366,20 @@ const App = () => {
                         {availableTypes.length > 0 ? availableTypes.map(type => {
                         const isSelected = selectedTypes.includes(type);
                         return (
-                            <div key={type} onClick={() => setSelectedTypes(prev => isSelected ? prev.filter(t => t !== type) : [...prev, type])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold mb-1 ${isSelected ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'hover:bg-zinc-800 text-zinc-500'}`}>
-                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-zinc-600" />} {type}
+                            <div key={type} onClick={() => setSelectedTypes(prev => isSelected ? prev.filter(t => t !== type) : [...prev, type])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold mb-1 ${isSelected ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'hover:bg-zinc-800 text-zinc-300'}`}>
+                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-zinc-500" />} {type}
                             </div>
                         );
-                        }) : <div className="p-2 text-center text-xs text-zinc-700">ไม่พบข้อมูล</div>}
+                        }) : <div className="p-2 text-center text-xs text-zinc-300">ไม่พบข้อมูล</div>}
                     </div>
                 </div>
 
                 {/* Multi-Select Agent Filter */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between pl-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">พนักงาน ({availableAgents.length})</label>
+                      <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest">พนักงาน ({availableAgents.length})</label>
                       <div className="flex gap-2">
-                        <button onClick={() => setSelectedAgents(availableAgents)} className="text-[9px] font-bold text-zinc-400 hover:text-white transition-colors">เลือกทั้งหมด</button>
+                        <button onClick={() => setSelectedAgents(availableAgents)} className="text-[9px] font-bold text-zinc-100 hover:text-white transition-colors">เลือกทั้งหมด</button>
                         <button onClick={() => setSelectedAgents([])} className="text-[9px] font-bold text-red-500/70 hover:text-red-500 transition-colors">ล้าง</button>
                       </div>
                     </div>
@@ -387,11 +387,11 @@ const App = () => {
                         {availableAgents.length > 0 ? availableAgents.map(agent => {
                         const isSelected = selectedAgents.includes(agent);
                         return (
-                            <div key={agent} onClick={() => setSelectedAgents(prev => isSelected ? prev.filter(a => a !== agent) : [...prev, agent])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold mb-1 ${isSelected ? 'bg-zinc-100 text-black shadow-md' : 'hover:bg-zinc-800 text-zinc-500'}`}>
-                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-zinc-600" />} <span className="truncate">{agent}</span>
+                            <div key={agent} onClick={() => setSelectedAgents(prev => isSelected ? prev.filter(a => a !== agent) : [...prev, agent])} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-xs font-bold mb-1 ${isSelected ? 'bg-zinc-100 text-black shadow-md' : 'hover:bg-zinc-800 text-zinc-300'}`}>
+                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-zinc-500" />} <span className="truncate">{agent}</span>
                             </div>
                         );
-                        }) : <div className="p-2 text-center text-xs text-zinc-700 italic">ไม่พบพนักงานในเงื่อนไขนี้</div>}
+                        }) : <div className="p-2 text-center text-xs text-zinc-100 italic font-bold">ไม่พบพนักงานในเงื่อนไขนี้</div>}
                     </div>
                 </div>
              </div>
@@ -412,23 +412,23 @@ const App = () => {
                 {loading && <RefreshCw size={18} className="animate-spin text-red-600" />}
               </h1>
               <div className="flex flex-col gap-1 mt-1">
-                <div className="text-zinc-500 text-[10px] font-black flex items-center gap-2 uppercase tracking-widest">
+                <div className="text-white text-[10px] font-black flex items-center gap-2 uppercase tracking-widest">
                   {data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div> CONNECTED: {data.length} CASES</> : "WAITING FOR CONNECTION"}
                 </div>
                 {lastUpdated && (
-                  <div className="text-zinc-600 text-[9px] font-bold flex items-center gap-1 uppercase tracking-widest">
-                    <Clock size={10} className="text-red-900" /> อัปเดตล่าสุด: {lastUpdated} (Autoทุก 5 นาที)
+                  <div className="text-zinc-100 text-[9px] font-bold flex items-center gap-1 uppercase tracking-widest">
+                    <Clock size={10} className="text-red-600" /> อัปเดตล่าสุด: {lastUpdated} (Autoทุก 5 นาที)
                   </div>
                 )}
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${hasActiveFilters ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}>
+            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${hasActiveFilters ? 'bg-red-600 border-red-500 text-white shadow-lg shadow-red-900/20' : 'bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700'}`}>
               <Filter size={16} /> ตัวกรอง {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-white animate-bounce"></span>}
             </button>
             <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-zinc-200 transition-all border-b-2 border-zinc-300 shadow-xl shadow-white/5"><Settings size={14} /> ตั้งค่า</button>
-            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-zinc-800 text-zinc-500 rounded-2xl hover:text-red-500 border border-zinc-700 transition-colors" title="ออกจากระบบ"><User size={20} /></button>
+            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-zinc-800 text-zinc-100 rounded-2xl hover:text-red-500 border border-zinc-700 transition-colors" title="ออกจากระบบ"><User size={20} /></button>
           </div>
         </header>
 
@@ -437,14 +437,14 @@ const App = () => {
             {/* KPI Section */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-                { label: 'งานที่ตรวจทั้งหมด', value: filteredData.length, icon: FileText, color: 'text-zinc-100', bg: 'bg-zinc-900 border-zinc-800' },
+                { label: 'งานที่ตรวจทั้งหมด', value: filteredData.length, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-zinc-800' },
                 { label: 'อัตราผ่านเกณฑ์', value: `${passRate}%`, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-900/20 shadow-lg shadow-emerald-900/5' },
                 { label: 'ควรปรับปรุง', value: filteredData.filter(d=>d.result==='ควรปรับปรุง').length, icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10 border-red-900/20' },
                 { label: 'พบข้อผิดพลาด', value: filteredData.filter(d=>d.result==='พบข้อผิดพลาด').length, icon: XCircle, color: 'text-red-700', bg: 'bg-zinc-900 border-zinc-800' }
             ].map((kpi, i) => (
                 <div key={i} className={`p-6 rounded-[2.5rem] border shadow-sm ${kpi.bg}`}>
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-zinc-800/50 ${kpi.color}`}><kpi.icon size={16} /></div>
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{kpi.label}</p>
+                  <p className="text-[9px] font-black text-white uppercase tracking-widest">{kpi.label}</p>
                   <h2 className={`text-3xl font-black ${kpi.color} tracking-tighter mt-1 uppercase`}>{kpi.value}</h2>
                 </div>
             ))}
@@ -460,7 +460,7 @@ const App = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                         {chartData.map((item) => (
                             <div key={item.name} className="flex flex-col items-center bg-zinc-800/50 px-4 py-2 rounded-2xl min-w-[90px] border border-zinc-800/50">
-                                <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{item.name}</span>
+                                <span className="text-[9px] font-black text-white uppercase tracking-widest">{item.name}</span>
                                 <span className="text-sm font-black" style={{color: item.color}}>{item.percent}%</span>
                             </div>
                         ))}
@@ -469,16 +469,16 @@ const App = () => {
                 <div className="h-72 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" opacity={0.5} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 900, fill: '#52525b', fontFamily: 'Sarabun'}} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#3f3f46', fontFamily: 'Sarabun'}} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3f3f46" opacity={0.5} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 900, fill: '#e4e4e7', fontFamily: 'Sarabun'}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#e4e4e7', fontFamily: 'Sarabun'}} />
                             <Tooltip cursor={{fill: '#18181b', opacity: 0.5}} content={({ active, payload, label }) => {
                               if (active && payload?.length) {
                                 return (
                                   <div className="bg-zinc-800 p-4 rounded-2xl shadow-2xl border border-zinc-700 text-white font-sans">
                                     <p className="font-black text-xs uppercase mb-1 tracking-widest">{label}</p>
-                                    <p className="text-zinc-100 font-black text-xl" style={{color: payload[0].payload.color}}>{payload[0].value} <span className="text-zinc-500 text-xs font-bold uppercase">Cases</span></p>
-                                    <p className="text-zinc-400 text-[10px] font-bold mt-1">PERCENT: {payload[0].payload.percent}%</p>
+                                    <p className="text-zinc-100 font-black text-xl" style={{color: payload[0].payload.color}}>{payload[0].value} <span className="text-white text-xs font-bold uppercase">Cases</span></p>
+                                    <p className="text-zinc-100 text-[10px] font-bold mt-1">PERCENT: {payload[0].payload.percent}%</p>
                                   </div>
                                 );
                               }
@@ -499,25 +499,25 @@ const App = () => {
                     <h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight">
                         <TrendingUp size={24} className="text-red-600" /> สรุปคุณภาพพนักงาน x ผลสัมภาษณ์
                     </h3>
-                    <p className="text-[9px] text-zinc-500 font-black uppercase mt-1 italic tracking-widest underline decoration-red-600/30 flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
+                    <p className="text-[9px] text-zinc-100 font-black uppercase mt-1 italic tracking-widest underline decoration-red-600/30 flex items-center gap-1"><ChevronRight size={12}/> คลิกที่ตัวเลข เพื่อดูรายละเอียดคอมเมนต์ด้านล่าง</p>
                     </div>
                 </div>
                 <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                     <table className="w-full text-left text-sm border-separate border-spacing-0">
-                    <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-zinc-600 text-[10px] uppercase tracking-widest border-b border-zinc-800">
+                    <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-white text-[10px] uppercase tracking-widest border-b border-zinc-800">
                         <tr>
                             <th rowSpan="2" className="px-8 py-6 border-b border-zinc-800 border-r border-zinc-800 bg-zinc-900">พนักงานสัมภาษณ์</th>
                             <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-zinc-800 bg-zinc-900/40 text-red-600 text-[11px] font-black italic uppercase">สรุปผลการสัมภาษณ์</th>
                             <th rowSpan="2" className="px-8 py-6 text-center bg-zinc-800 text-white border-b border-zinc-800 border-l border-zinc-800">รวม</th>
                         </tr>
                         <tr className="bg-zinc-900/80">
-                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-zinc-800 border-r border-zinc-800 text-zinc-700">{type}</th>)}
+                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-zinc-800 border-r border-zinc-800 text-white">{type}</th>)}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800/40">
                         {agentSummary.map((agent, i) => (
                         <tr key={i} className="hover:bg-zinc-800/50 transition-colors group">
-                            <td className="px-8 py-5 font-black text-zinc-300 border-r border-zinc-800">{agent.name}</td>
+                            <td className="px-8 py-5 font-black text-white border-r border-zinc-800">{agent.name}</td>
                             {RESULT_ORDER.map(type => {
                             const val = agent[type];
                             const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
@@ -544,21 +544,21 @@ const App = () => {
                         </h3>
                         {activeCell.agent && (
                             <div className="flex items-center gap-2 mt-2">
-                                <span className="text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-lg shadow-lg shadow-red-900/20 uppercase italic tracking-tighter animate-pulse">
+                                <span className="text-[9px] font-black px-3 py-1 bg-red-600 text-white rounded-lg shadow-lg shadow-red-900/30 uppercase italic tracking-tighter animate-pulse">
                                     FILTERING: {activeCell.agent} ({activeCell.resultType})
                                 </span>
-                                <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="p-1 hover:bg-zinc-800 rounded text-zinc-600 hover:text-red-500 transition-colors"><X size={12}/></button>
+                                <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="p-1 hover:bg-zinc-800 rounded text-zinc-100 hover:text-red-500 transition-colors"><X size={12}/></button>
                             </div>
                         )}
                     </div>
                     <div className="relative w-full md:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
-                        <input type="text" placeholder="ค้นหาพนักงาน หรือ คอมเมนต์..." className="w-full pl-12 pr-6 py-4 bg-zinc-800/50 border border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-red-600 text-white placeholder-zinc-700 transition-all shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                        <input type="text" placeholder="ค้นหาพนักงาน หรือ คอมเมนต์..." className="w-full pl-12 pr-6 py-4 bg-zinc-800/50 border border-zinc-800 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-red-600 text-white placeholder-zinc-500 transition-all shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
                     </div>
                 </div>
                 <div className="overflow-auto max-h-[600px] custom-scrollbar">
                     <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
-                    <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-zinc-800 font-black text-zinc-600 uppercase tracking-widest">
+                    <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-zinc-800 font-black text-white uppercase tracking-widest">
                         <tr>
                             <th className="px-8 py-5 border-r border-zinc-800/30">วันที่ / ประเภท</th>
                             <th className="px-8 py-5 border-r border-zinc-800/30">พนักงานสัมภาษณ์</th>
@@ -570,12 +570,12 @@ const App = () => {
                         {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item, idx) => (
                         <tr key={idx} className="hover:bg-zinc-800/40 transition-all group">
                             <td className="px-8 py-6 border-r border-zinc-800/20">
-                                <div className="font-black text-zinc-100">{item.date}</div>
+                                <div className="font-black text-white">{item.date}</div>
                                 <div className="text-[9px] font-black text-red-600 uppercase mt-1 tracking-tighter shadow-red-900/10 italic">{item.type} &bull; SUP: {item.supervisor}</div>
                             </td>
                             <td className="px-8 py-6 border-r border-zinc-800/20">
-                                <div className="font-black text-zinc-200 text-sm group-hover:text-white transition-colors">{item.agent}</div>
-                                <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5 italic opacity-60">{item.touchpoint}</div>
+                                <div className="font-black text-white text-sm group-hover:text-red-500 transition-colors">{item.agent}</div>
+                                <div className="text-[9px] text-zinc-300 font-bold uppercase tracking-widest mt-0.5 italic opacity-80">{item.touchpoint}</div>
                             </td>
                             <td className="px-4 py-6 text-center border-r border-zinc-800/20">
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${COLORS[item.result]}10`, color: COLORS[item.result], borderColor: `${COLORS[item.result]}25` }}>
@@ -585,7 +585,7 @@ const App = () => {
                             </td>
                             <td className="px-8 py-6">
                                 <div className="flex flex-col gap-2">
-                                    <p className="text-zinc-400 font-semibold italic max-w-sm leading-relaxed group-hover:text-zinc-200 transition-colors">
+                                    <p className="text-zinc-300 font-semibold italic max-w-sm leading-relaxed group-hover:text-white transition-colors">
                                         {item.comment ? `"${item.comment}"` : '-'}
                                     </p>
                                     {item.audio && item.audio.includes('http') && (
@@ -597,7 +597,7 @@ const App = () => {
                             </td>
                         </tr>
                         )) : (
-                        <tr><td colSpan={4} className="px-8 py-24 text-center text-zinc-800 font-black uppercase italic tracking-widest text-lg opacity-20">No Matching Analysis Data</td></tr>
+                        <tr><td colSpan={4} className="px-8 py-24 text-center text-white font-black uppercase italic tracking-widest text-lg opacity-20">No Matching Analysis Data</td></tr>
                         )}
                     </tbody>
                     </table>
@@ -610,8 +610,8 @@ const App = () => {
                 <div className="bg-zinc-800 w-24 h-24 rounded-[3rem] flex items-center justify-center mx-auto mb-8 shadow-2xl border border-zinc-700">
                     <Database size={40} className="text-zinc-600" />
                 </div>
-                <h2 className="text-2xl font-black text-zinc-500 uppercase italic tracking-widest">Waiting for Signal</h2>
-                <p className="text-zinc-700 text-xs mt-3 max-w-sm mx-auto font-black uppercase tracking-widest leading-relaxed">กรุณากดปุ่ม "ตั้งค่าการเชื่อมต่อ" ด้านบน และวางลิงก์ CSV จาก Google Sheets</p>
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-widest">Waiting for Signal</h2>
+                <p className="text-zinc-100 text-xs mt-3 max-w-sm mx-auto font-black uppercase tracking-widest leading-relaxed">กรุณากดปุ่ม "ตั้งค่าการเชื่อมต่อ" ด้านบน และวางลิงก์ CSV จาก Google Sheets</p>
             </div>
           )
         )}
@@ -631,22 +631,22 @@ const App = () => {
                 </div>
                 <div className="space-y-8">
                     <div className="bg-zinc-950/50 p-6 rounded-[2rem] border border-zinc-800/50">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2 italic underline decoration-red-600 decoration-2">Instructions</p>
-                        <ol className="text-xs text-zinc-400 space-y-3 font-medium">
+                        <p className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2 italic underline decoration-red-600 decoration-2">Instructions</p>
+                        <ol className="text-xs text-zinc-100 space-y-3 font-medium">
                             <li className="flex gap-2"><span>1.</span> ไปที่ Google Sheets { ' > ' } File { ' > ' } Publish to web</li>
                             <li className="flex gap-2"><span>2.</span> เลือกชีต <span className="text-red-600 font-bold underline italic tracking-tight">"ACQC"</span> และเปลี่ยนเป็นรูปแบบ <span className="text-white font-bold underline italic tracking-tight">"CSV"</span></li>
                             <li className="flex gap-2"><span>3.</span> คัดลอกลิงก์ที่ได้มาวางในช่องด้านล่าง</li>
                         </ol>
                     </div>
                     <div className="flex flex-col gap-5">
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest pl-2">CSV URL Link</label>
+                        <label className="text-[10px] font-black text-zinc-100 uppercase tracking-widest pl-2">CSV URL Link</label>
                         <input type="text" placeholder="https://docs.google.com/spreadsheets/d/e/..." className="w-full px-8 py-5 bg-zinc-950 border border-zinc-800 rounded-3xl text-sm font-bold text-white outline-none focus:ring-2 focus:ring-red-600 transition-all shadow-inner" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} />
                         <div className="flex gap-4">
                             <button onClick={() => fetchFromSheet(sheetUrl)} disabled={loading || !sheetUrl} className="flex-1 py-5 bg-red-600 hover:bg-red-700 text-white rounded-3xl font-black uppercase transition-all shadow-xl shadow-red-900/30 disabled:opacity-20 text-sm tracking-widest italic">
                                 {loading ? 'SYNCING...' : 'CONNECT & ANALYZE'}
                             </button>
                             {data.length > 0 && (
-                                <button onClick={clearConnection} className="p-5 bg-zinc-800 text-zinc-500 hover:text-red-500 rounded-3xl border border-zinc-700 hover:border-red-900/30 transition-all"><Trash2 size={24}/></button>
+                                <button onClick={clearConnection} className="p-5 bg-zinc-800 text-zinc-100 hover:text-red-500 rounded-3xl border border-zinc-700 hover:border-red-900/30 transition-all"><Trash2 size={24}/></button>
                             )}
                         </div>
                         {error && <p className="text-center text-xs text-red-500 font-black mt-2 uppercase italic tracking-tighter animate-pulse bg-red-600/5 p-3 rounded-xl border border-red-600/10 shadow-lg">{error}</p>}
