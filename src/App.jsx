@@ -14,6 +14,7 @@ import {
  * - FIX: แก้ไข Logic การจับคู่ Result (ใช้ startsWith แทน includes) เพื่อแก้ปัญหา "ไม่ผ่านเกณฑ์" กลายเป็น "ผ่านเกณฑ์"
  * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
  * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
+ * - FIX: เพิ่มระบบ Recent Edits Buffer ป้องกันข้อมูลเด้งกลับ (Revert) เมื่อ Sheet อัปเดตไม่ทัน
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -69,6 +70,9 @@ const App = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   
+  // Ref สำหรับเก็บข้อมูลที่เพิ่งแก้ไขไป (Buffer) เพื่อป้องกันการเด้งกลับ
+  const recentEdits = useRef(new Map());
+
   const getStorage = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch(e) { return fallback; } };
 
   const [appsScriptUrl, setAppsScriptUrl] = useState(getStorage('apps_script_url', DEFAULT_APPS_SCRIPT_URL));
@@ -201,7 +205,7 @@ const App = () => {
       const EVAL_START_INDEX = 15; // Column P
       const EVAL_COUNT = 13; // P to AB
 
-      const parsedData = allRows.slice(headerIdx + 1)
+      let parsedData = allRows.slice(headerIdx + 1)
         .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
         .filter(({ row }) => {
           if (!row || !Array.isArray(row)) return false;
@@ -269,6 +273,22 @@ const App = () => {
           };
         });
 
+      // --- CRITICAL FIX: Merge with Recent Edits to prevent reverting ---
+      // ป้องกันการเด้งกลับของข้อมูลด้วยการเอาค่าจาก Local Buffer (recentEdits) ไปทับข้อมูลที่เพิ่งดึงมา
+      // หากข้อมูลใน Buffer นั้นใหม่กว่าและยังไม่เกิน 60 วินาที
+      parsedData = parsedData.map(item => {
+        const cached = recentEdits.current.get(item.id);
+        if (cached) {
+            // ถ้ามี Cache และเวลาผ่านไปไม่ถึง 60 วินาที ให้ใช้ข้อมูลจาก Cache แทน (ถือว่า Server ยังไม่อัปเดต)
+            if (Date.now() - cached.timestamp < 60000) {
+                 return cached.data;
+            } else {
+                 recentEdits.current.delete(item.id); // Cache หมดอายุแล้ว ลบออก
+            }
+        }
+        return item;
+      });
+
       setData(parsedData); 
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
       localStorage.setItem('apps_script_url', urlToFetch);
@@ -295,6 +315,14 @@ const App = () => {
 
     // 1. Optimistic Update (Update UI immediately)
     const updatedItem = { ...editingCase };
+
+    // --- CRITICAL FIX: Add to Recent Edits Buffer ---
+    // เก็บข้อมูลลง Buffer ทันทีเพื่อกันไม่ให้ Fetch ครั้งถัดไปมาทับข้อมูลนี้
+    recentEdits.current.set(updatedItem.id, {
+        data: updatedItem,
+        timestamp: Date.now()
+    });
+
     setData(prevData => prevData.map(item => {
         if (item.id === editingCase.id) {
             return updatedItem;
@@ -331,6 +359,10 @@ const App = () => {
 
     } catch (err) { 
       alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
+      
+      // ลบออกจาก Buffer ถ้าบันทึกไม่สำเร็จ
+      recentEdits.current.delete(editingCase.id);
+      
       setData(backupData); // Revert on error
       setIsSaving(false); 
     }
