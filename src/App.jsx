@@ -31,7 +31,7 @@ const SCORE_LABELS = { '5': '5.ดี', '4': '4.ค่อนข้างดี',
 const formatResultDisplay = (text) => (text ? text.split('(')[0].trim() : '-');
 
 const COLORS = {
-  'ดีเยี่ยม': '#6366f1',     // Indigo-500
+  'ดีเยี่ยม': '#6366f1',      // Indigo-500
   'ผ่านเกณฑ์': '#10B981',   // Emerald-500
   'ควรปรับปรุง': '#F59E0B', // Amber-500
   'พบข้อผิดพลาด': '#f43f5e', // Rose-500
@@ -199,9 +199,9 @@ const App = () => {
           console.warn("Agent column ambiguous.");
       }
       
-      // Determine evaluations columns (Starting from 'Introduction' or similar)
-      let evalStartIdx = headers.findIndex(h => h && (h.includes("Introduction") || h.includes("น้ำเสียง") || h.includes("1.")));
-      if (evalStartIdx === -1) evalStartIdx = 15; // Default fallback
+      // Determine evaluations columns (User Specified: Column P to AB = Index 15 to 27)
+      // แก้ไข: บังคับเริ่มที่ Column P (Index 15) จำนวน 13 ข้อ (P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB)
+      let evalStartIdx = 15;
 
       const parsedData = allRows.slice(headerIdx + 1)
         .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // +1 header, +1 for 1-based index
