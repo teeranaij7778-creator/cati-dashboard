@@ -9,9 +9,8 @@ import {
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
  * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล (High Performance)
- * - อัปเดต: เปลี่ยนระบบดึงข้อมูลจาก CSV เป็น JSON ผ่าน Apps Script (Method 1)
- * - อัปเดต: เพิ่มความยืดหยุ่นในการหา Header Row (แก้ปัญหาหาคอลัมน์ไม่เจอ)
- * - อัปเดต: รวมช่อง Link เหลือช่องเดียวเพื่อความ Seamless
+ * - อัปเดต: เพิ่มระบบดักจับ Error กรณี Apps Script ส่ง Text/HTML แทน JSON
+ * - อัปเดต: ปรับปรุงการแจ้งเตือน Error ให้เข้าใจง่ายขึ้น
  */
 
 // ค่า Default Apps Script URL ที่ User ต้องเอามาใส่ (ถ้ามีของเดิมให้ใส่ของเดิม)
@@ -112,13 +111,31 @@ const App = () => {
   const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      // 1. Fetch JSON from Apps Script (Method 1)
+      // 1. Fetch content (รับ Response มาก่อน)
       const response = await fetch(urlToFetch);
-      if (!response.ok) throw new Error("ไม่สามารถเชื่อมต่อกับ Apps Script ได้");
       
-      const allRows = await response.json(); // ได้ข้อมูลเป็น Array of Arrays ทันที
+      if (!response.ok) {
+         throw new Error(`Server returned ${response.status} ${response.statusText}`);
+      }
+
+      // 2. Read as Text first to debug (อ่านเป็นข้อความก่อนแปลง JSON)
+      const text = await response.text();
       
-      if (!Array.isArray(allRows) || allRows.length === 0) throw new Error("ไม่พบข้อมูล หรือ Format ไม่ถูกต้อง");
+      // 3. Try parsing JSON (ลองแปลงเป็น JSON)
+      let allRows;
+      try {
+        allRows = JSON.parse(text);
+      } catch (jsonErr) {
+        // ถ้าแปลงไม่ได้ แสดงว่า Apps Script ส่ง Text/HTML กลับมา
+        const preview = text.substring(0, 50); // ตัดข้อความมาดู 50 ตัวอักษรแรก
+        if (text.trim().startsWith('<')) {
+            throw new Error(`URL ส่งกลับมาเป็น HTML (อาจติดหน้า Login): ${preview}... กรุณาเช็คว่าตั้งค่า "Who has access" เป็น "Anyone" หรือยัง`);
+        } else {
+            throw new Error(`ได้รับข้อมูลที่ไม่ใช่ JSON: "${preview}..." (กรุณาเช็ค Apps Script Code)`);
+        }
+      }
+      
+      if (!Array.isArray(allRows) || allRows.length === 0) throw new Error("ไม่พบข้อมูล หรือ Format ไม่ถูกต้อง (ต้องเป็น Array)");
 
       // 2. Logic ในการหา Header และ Map ข้อมูล (UPDATED for Robustness)
       let headerIdx = allRows.findIndex(row => 
@@ -175,9 +192,6 @@ const App = () => {
 
       // Check essential columns
       if (idx.agent === -1) {
-          // If agent column not found by name, try generic indices or fallback
-          // Assuming column 1 or 2 often has names if headers are messed up
-          // For now, let's proceed but warn
           console.warn("Agent column ambiguous.");
       }
       
@@ -206,8 +220,6 @@ const App = () => {
           const agentColIndex = idx.agent !== -1 ? idx.agent : 10;
           const agentId = row[agentColIndex]?.trim() || 'Unknown';
           
-          // Try to find full name if agentId is just a code, assume name is next column or specific logic
-          // Simplified: Just use what we found in agent column
           const displayAgent = agentId;
           
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
