@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
- * - อัปเดต: แก้ไขปัญหาคะแนน 13 ข้อไม่บันทึก (Fix Save Evaluations)
- * - อัปเดต: เปิดใช้งาน CORS เพื่อตรวจสอบสถานะการบันทึกที่แม่นยำ
+ * - อัปเดต: บังคับอ่านคอลัมน์ P-AB (13 ข้อ) อย่างเคร่งครัด
+ * - อัปเดต: แก้ไขปัญหาบันทึกคะแนนไม่ครบกรณีหัวตารางว่าง
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -187,9 +187,9 @@ const App = () => {
 
       if (idx.agent === -1) console.warn("Agent column ambiguous.");
       
-      let evalStartIdx = headers.findIndex(h => h && (h.includes("Introduction") || h.includes("น้ำเสียง") || h.includes("1.")));
-      if (evalStartIdx === -1) evalStartIdx = 15; 
-
+      // Force columns P (15) to AB (27) - Total 13 columns
+      let evalStartIdx = 15; 
+      
       const parsedData = allRows.slice(headerIdx + 1)
         .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) 
         .filter(({ row }) => {
@@ -214,15 +214,15 @@ const App = () => {
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
           const evaluations = [];
-          if (evalStartIdx > -1) {
-              for (let i = 0; i < 13; i++) { 
-                  if (headers[evalStartIdx + i]) {
-                      evaluations.push({
-                          label: headers[evalStartIdx + i],
-                          value: row[evalStartIdx + i] || '-'
-                      });
-                  }
-              }
+          // Force creating 13 items regardless of header existence
+          for (let i = 0; i < 13; i++) { 
+              let label = headers[evalStartIdx + i];
+              if (!label || label.trim() === '') label = `เกณฑ์ข้อที่ ${i+1} (Col ${String.fromCharCode(80+i)})`; // Fallback label P(80) onwards
+              
+              evaluations.push({
+                  label: label,
+                  value: row[evalStartIdx + i] || '-'
+              });
           }
 
           return {
