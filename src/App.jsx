@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
- * - อัปเดต: ใช้ Apps Script URL ล่าสุดที่คุณให้มา
- * - อัปเดต: เพิ่มการแจ้งเตือนกรณีเชื่อมต่อสำเร็จแต่ Sheet ว่างเปล่า
+ * - อัปเดต: แก้ไขปัญหาคะแนน 13 ข้อไม่บันทึก (Fix Save Evaluations)
+ * - อัปเดต: เปิดใช้งาน CORS เพื่อตรวจสอบสถานะการบันทึกที่แม่นยำ
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -109,23 +109,19 @@ const App = () => {
   const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      // 1. Fetch content (รับ Response มาก่อน)
       const response = await fetch(urlToFetch);
       
       if (!response.ok) {
          throw new Error(`Server returned ${response.status} ${response.statusText}`);
       }
 
-      // 2. Read as Text first to debug (อ่านเป็นข้อความก่อนแปลง JSON)
       const text = await response.text();
       
-      // 3. Try parsing JSON (ลองแปลงเป็น JSON)
       let allRows;
       try {
         allRows = JSON.parse(text);
       } catch (jsonErr) {
-        // ถ้าแปลงไม่ได้ แสดงว่า Apps Script ส่ง Text/HTML กลับมา
-        const preview = text.substring(0, 50); // ตัดข้อความมาดู 50 ตัวอักษรแรก
+        const preview = text.substring(0, 50); 
         if (text.trim().startsWith('<')) {
             throw new Error(`URL ส่งกลับมาเป็น HTML (อาจติดหน้า Login): ${preview}... กรุณาเช็คว่าตั้งค่า "Who has access" เป็น "Anyone" หรือยัง`);
         } else {
@@ -141,7 +137,6 @@ const App = () => {
       
       if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า! (กรุณาเช็คว่าข้อมูลอยู่ที่ Tab แรกสุดหรือไม่)");
 
-      // 2. Logic ในการหา Header และ Map ข้อมูล (UPDATED for Robustness)
       let headerIdx = allRows.findIndex(row => 
         Array.isArray(row) && row.some(cell => 
           (cell && cell.toString().toLowerCase().includes("interviewer")) || 
@@ -150,7 +145,6 @@ const App = () => {
         )
       );
 
-      // Fallback Strategy 1: Look for Date/Time
       if (headerIdx === -1) {
          headerIdx = allRows.findIndex(row => 
             Array.isArray(row) && row.some(cell => 
@@ -160,7 +154,6 @@ const App = () => {
          );
       }
 
-      // Fallback Strategy 2: Default to row 0 if headers look like strings
       if (headerIdx === -1 && allRows.length > 0) {
           console.warn("Could not find specific header keywords. Defaulting to row 0.");
           headerIdx = 0;
@@ -170,7 +163,6 @@ const App = () => {
 
       const headers = allRows[headerIdx].map(h => h ? h.toString().trim() : "");
       
-      // Helper function to safely find column index
       const getIdx = (keywords) => {
         if (!Array.isArray(keywords)) keywords = [keywords];
         return headers.findIndex(h => {
@@ -180,7 +172,6 @@ const App = () => {
         });
       };
 
-      // Column mapping with multiple keywords
       const idx = {
         month: getIdx(["เดือน", "month"]), 
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
@@ -194,21 +185,15 @@ const App = () => {
         audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
       };
 
-      // Check essential columns
-      if (idx.agent === -1) {
-          console.warn("Agent column ambiguous.");
-      }
+      if (idx.agent === -1) console.warn("Agent column ambiguous.");
       
-      // Determine evaluations columns (Starting from 'Introduction' or similar)
       let evalStartIdx = headers.findIndex(h => h && (h.includes("Introduction") || h.includes("น้ำเสียง") || h.includes("1.")));
-      if (evalStartIdx === -1) evalStartIdx = 15; // Default fallback
+      if (evalStartIdx === -1) evalStartIdx = 15; 
 
       const parsedData = allRows.slice(headerIdx + 1)
-        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // +1 header, +1 for 1-based index
+        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) 
         .filter(({ row }) => {
-          // Check bounds
           if (!row || !Array.isArray(row)) return false;
-          // Use the detected agent index, or fallback to a likely column (e.g. 10 or 2)
           const agentColIndex = idx.agent !== -1 ? idx.agent : 10; 
           if (row.length <= agentColIndex) return false;
           
@@ -223,16 +208,14 @@ const App = () => {
           
           const agentColIndex = idx.agent !== -1 ? idx.agent : 10;
           const agentId = row[agentColIndex]?.trim() || 'Unknown';
-          
           const displayAgent = agentId;
           
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
-          // Evaluations
           const evaluations = [];
           if (evalStartIdx > -1) {
-              for (let i = 0; i < 13; i++) { // Approx 13 criteria
+              for (let i = 0; i < 13; i++) { 
                   if (headers[evalStartIdx + i]) {
                       evaluations.push({
                           label: headers[evalStartIdx + i],
@@ -260,7 +243,7 @@ const App = () => {
 
       setData(parsedData); 
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
-      localStorage.setItem('apps_script_url', urlToFetch); // Save success URL
+      localStorage.setItem('apps_script_url', urlToFetch); 
       setShowSync(false);
 
     } catch (err) { 
@@ -287,20 +270,34 @@ const App = () => {
         rowIndex: editingCase.rowIndex, 
         result: editingCase.result,
         type: editingCase.type,
-        evaluations: editingCase.evaluations.map(e => e.value), 
+        // Update: Ensure we send plain strings, prevent undefined
+        evaluations: editingCase.evaluations.map(e => (e.value || '-').toString()), 
         comment: editingCase.comment
       };
       
-      // Send POST to the SAME URL (Apps Script handles both GET/POST)
-      await fetch(appsScriptUrl, { 
+      // Update: Removed 'no-cors' to allow error handling and response checking
+      const response = await fetch(appsScriptUrl, { 
         method: 'POST', 
-        mode: 'no-cors', 
-        cache: 'no-cache', 
-        headers: { 'Content-Type': 'application/json' }, 
+        redirect: 'follow', // Follow redirects from Google
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Google Apps Script prefers text/plain for CORS
         body: JSON.stringify(updateData) 
       });
+
+      if (!response.ok) {
+        throw new Error(`Server Error: ${response.status}`);
+      }
+
+      const resText = await response.text();
+      // Try to parse response to check for script-level errors
+      try {
+        const resJson = JSON.parse(resText);
+        if (resJson.status === 'error') throw new Error(resJson.message);
+      } catch (e) {
+        // If not JSON, it might be HTML error page from Google
+        if (resText.includes("script")) throw new Error("Script Error: กรุณาเช็คว่า Column ใน Sheet มีครบหรือไม่ (P-AB)");
+      }
       
-      // INSTANT UI UPDATE (Optimistic Update)
+      // Optimistic Update
       setData(prevData => prevData.map(item => {
         if (item.id === editingCase.id) {
           return { ...editingCase };
@@ -311,12 +308,12 @@ const App = () => {
       setTimeout(() => { 
         setIsSaving(false); 
         setEditingCase(null); 
-        // Fetch new data via JSON immediately (Real-time check)
         fetchFromAppsScript(appsScriptUrl); 
       }, 1500);
 
     } catch (err) { 
-      alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
+      console.error("Save Error:", err);
+      alert("บันทึกไม่สำเร็จ: " + err.message + "\n(คำแนะนำ: ลองเช็คว่าใน Sheet มีคอลัมน์ P ถึง AC ครบหรือไม่)"); 
       setData(backupData);
       setIsSaving(false); 
     }
@@ -719,7 +716,12 @@ const App = () => {
                                     {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
                                     <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-indigo-600/50 ring-1 ring-indigo-600/20' : 'border-slate-800'}`}>
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
-                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
+                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { 
+                                            // Fix: Update state immutably to ensure React detects change
+                                            const newEvals = [...editingCase.evaluations]; 
+                                            newEvals[eIdx] = { ...newEvals[eIdx], value: e.target.value };
+                                            setEditingCase({...editingCase, evaluations: newEvals}); 
+                                        }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
                                     </div>
                                     ))}
                                 </div>
