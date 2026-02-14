@@ -10,6 +10,8 @@ import {
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
  * - อัปเดต: ใช้ Apps Script URL ล่าสุดที่คุณให้มา
  * - อัปเดต: เพิ่มการแจ้งเตือนกรณีเชื่อมต่อสำเร็จแต่ Sheet ว่างเปล่า
+ * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
+ * - FIX: การแสดงผลทันทีหลังบันทึก (Instant Update)
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -109,27 +111,26 @@ const App = () => {
   const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      // 1. Fetch content (รับ Response มาก่อน)
+      // 1. Fetch content
       const response = await fetch(urlToFetch);
       
       if (!response.ok) {
          throw new Error(`Server returned ${response.status} ${response.statusText}`);
       }
 
-      // 2. Read as Text first to debug (อ่านเป็นข้อความก่อนแปลง JSON)
+      // 2. Read as Text first to debug
       const text = await response.text();
       
-      // 3. Try parsing JSON (ลองแปลงเป็น JSON)
+      // 3. Try parsing JSON
       let allRows;
       try {
         allRows = JSON.parse(text);
       } catch (jsonErr) {
-        // ถ้าแปลงไม่ได้ แสดงว่า Apps Script ส่ง Text/HTML กลับมา
-        const preview = text.substring(0, 50); // ตัดข้อความมาดู 50 ตัวอักษรแรก
+        const preview = text.substring(0, 50);
         if (text.trim().startsWith('<')) {
-            throw new Error(`URL ส่งกลับมาเป็น HTML (อาจติดหน้า Login): ${preview}... กรุณาเช็คว่าตั้งค่า "Who has access" เป็น "Anyone" หรือยัง`);
+            throw new Error(`URL ส่งกลับมาเป็น HTML: ${preview}... เช็คสิทธิ์ 'Anyone'`);
         } else {
-            throw new Error(`ได้รับข้อมูลที่ไม่ใช่ JSON: "${preview}..." (กรุณาเช็ค Apps Script Code)`);
+            throw new Error(`ได้รับข้อมูลที่ไม่ใช่ JSON: "${preview}..."`);
         }
       }
       
@@ -139,9 +140,9 @@ const App = () => {
 
       if (!Array.isArray(allRows)) throw new Error("Format ข้อมูลไม่ถูกต้อง (ต้องเป็น Array)");
       
-      if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า! (กรุณาเช็คว่าข้อมูลอยู่ที่ Tab แรกสุดหรือไม่)");
+      if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า!");
 
-      // 2. Logic ในการหา Header และ Map ข้อมูล (UPDATED for Robustness)
+      // 2. Logic ในการหา Header
       let headerIdx = allRows.findIndex(row => 
         Array.isArray(row) && row.some(cell => 
           (cell && cell.toString().toLowerCase().includes("interviewer")) || 
@@ -150,7 +151,6 @@ const App = () => {
         )
       );
 
-      // Fallback Strategy 1: Look for Date/Time
       if (headerIdx === -1) {
          headerIdx = allRows.findIndex(row => 
             Array.isArray(row) && row.some(cell => 
@@ -160,7 +160,6 @@ const App = () => {
          );
       }
 
-      // Fallback Strategy 2: Default to row 0 if headers look like strings
       if (headerIdx === -1 && allRows.length > 0) {
           console.warn("Could not find specific header keywords. Defaulting to row 0.");
           headerIdx = 0;
@@ -170,7 +169,6 @@ const App = () => {
 
       const headers = allRows[headerIdx].map(h => h ? h.toString().trim() : "");
       
-      // Helper function to safely find column index
       const getIdx = (keywords) => {
         if (!Array.isArray(keywords)) keywords = [keywords];
         return headers.findIndex(h => {
@@ -180,7 +178,6 @@ const App = () => {
         });
       };
 
-      // Column mapping with multiple keywords
       const idx = {
         month: getIdx(["เดือน", "month"]), 
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
@@ -194,24 +191,17 @@ const App = () => {
         audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
       };
 
-      // Check essential columns
-      if (idx.agent === -1) {
-          console.warn("Agent column ambiguous.");
-      }
-      
-      // Determine evaluations columns (User Specified: Column P to AB = Index 15 to 27)
-      // แก้ไข: บังคับเริ่มที่ Column P (Index 15) จำนวน 13 ข้อ (P, Q, R, S, T, U, V, W, X, Y, Z, AA, AB)
-      let evalStartIdx = 15;
+      // FIX: บังคับเริ่มอ่านคะแนนที่ Column P (Index 15) จำนวน 13 ข้อ
+      // A=0, ..., O=14, P=15
+      const EVAL_START_INDEX = 15; 
+      const EVAL_COUNT = 13; // P to AB
 
       const parsedData = allRows.slice(headerIdx + 1)
-        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // +1 header, +1 for 1-based index
+        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
         .filter(({ row }) => {
-          // Check bounds
           if (!row || !Array.isArray(row)) return false;
-          // Use the detected agent index, or fallback to a likely column (e.g. 10 or 2)
           const agentColIndex = idx.agent !== -1 ? idx.agent : 10; 
           if (row.length <= agentColIndex) return false;
-          
           const agentCode = row[agentColIndex]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
         })
@@ -229,17 +219,17 @@ const App = () => {
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
-          // Evaluations
+          // Evaluations: Read 13 columns starting from P (Index 15)
           const evaluations = [];
-          if (evalStartIdx > -1) {
-              for (let i = 0; i < 13; i++) { // Approx 13 criteria
-                  if (headers[evalStartIdx + i]) {
-                      evaluations.push({
-                          label: headers[evalStartIdx + i],
-                          value: row[evalStartIdx + i] || '-'
-                      });
-                  }
-              }
+          for (let i = 0; i < EVAL_COUNT; i++) {
+              const currentIdx = EVAL_START_INDEX + i;
+              // Use header name if available, else generic Name
+              const label = headers[currentIdx] || `Criteria ${i+1}`;
+              const value = (row[currentIdx] !== undefined && row[currentIdx] !== null) ? row[currentIdx].toString() : '-';
+              evaluations.push({
+                  label: label,
+                  value: value
+              });
           }
 
           return {
@@ -260,7 +250,7 @@ const App = () => {
 
       setData(parsedData); 
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
-      localStorage.setItem('apps_script_url', urlToFetch); // Save success URL
+      localStorage.setItem('apps_script_url', urlToFetch);
       setShowSync(false);
 
     } catch (err) { 
@@ -282,16 +272,25 @@ const App = () => {
     setIsSaving(true);
     const backupData = [...data];
 
+    // 1. Optimistic Update (Update UI immediately)
+    const updatedItem = { ...editingCase };
+    setData(prevData => prevData.map(item => {
+        if (item.id === editingCase.id) {
+            return updatedItem;
+        }
+        return item;
+    }));
+
     try {
       const updateData = {
         rowIndex: editingCase.rowIndex, 
         result: editingCase.result,
         type: editingCase.type,
-        evaluations: editingCase.evaluations.map(e => e.value), 
+        evaluations: editingCase.evaluations.map(e => e.value), // Array of values for P-AB
         comment: editingCase.comment
       };
       
-      // Send POST to the SAME URL (Apps Script handles both GET/POST)
+      // 2. Send to Backend
       await fetch(appsScriptUrl, { 
         method: 'POST', 
         mode: 'no-cors', 
@@ -300,24 +299,18 @@ const App = () => {
         body: JSON.stringify(updateData) 
       });
       
-      // INSTANT UI UPDATE (Optimistic Update)
-      setData(prevData => prevData.map(item => {
-        if (item.id === editingCase.id) {
-          return { ...editingCase };
-        }
-        return item;
-      }));
+      // 3. Clear editing state
+      setEditingCase(null); 
+      setIsSaving(false);
 
+      // 4. Background re-fetch (Optional: verify consistency later)
       setTimeout(() => { 
-        setIsSaving(false); 
-        setEditingCase(null); 
-        // Fetch new data via JSON immediately (Real-time check)
-        fetchFromAppsScript(appsScriptUrl); 
-      }, 1500);
+        // fetchFromAppsScript(appsScriptUrl); // Can uncomment if needed, but UI is already updated
+      }, 3000);
 
     } catch (err) { 
       alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
-      setData(backupData);
+      setData(backupData); // Revert on error
       setIsSaving(false); 
     }
   };
