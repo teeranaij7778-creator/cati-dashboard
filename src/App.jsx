@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Download
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION
- * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล และการวิเคราะห์แนวโน้ม
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
+ * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
+ * - อัปเดต: เพิ่มปุ่ม Refresh ข้อมูลใน Header
  */
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
@@ -31,11 +32,11 @@ const SCORE_LABELS = { '5': '5.ดี', '4': '4.ค่อนข้างดี',
 const formatResultDisplay = (text) => (text ? text.split('(')[0].trim() : '-');
 
 const COLORS = {
-  'ดีเยี่ยม': '#6366f1',
-  'ผ่านเกณฑ์': '#10B981',
-  'ควรปรับปรุง': '#F59E0B',
-  'พบข้อผิดพลาด': '#f43f5e',
-  'ไม่ผ่านเกณฑ์': '#be123c',
+  'ดีเยี่ยม': '#6366f1',     // Indigo-500
+  'ผ่านเกณฑ์': '#10B981',   // Emerald-500
+  'ควรปรับปรุง': '#F59E0B', // Amber-500
+  'พบข้อผิดพลาด': '#f43f5e', // Rose-500
+  'ไม่ผ่านเกณฑ์': '#be123c', // Rose-700
 };
 
 const getResultColor = (fullText) => {
@@ -44,7 +45,7 @@ const getResultColor = (fullText) => {
   if (fullText.startsWith('ควรปรับปรุง')) return COLORS['ควรปรับปรุง'];
   if (fullText.startsWith('พบข้อผิดพลาด')) return COLORS['พบข้อผิดพลาด'];
   if (fullText.startsWith('ไม่ผ่านเกณฑ์')) return COLORS['ไม่ผ่านเกณฑ์'];
-  return '#94a3b8';
+  return '#94a3b8'; // Slate-400
 };
 
 const IntageLogo = ({ className = "h-8" }) => (
@@ -104,24 +105,21 @@ const App = () => {
   const [selectedTypes, setSelectedTypes] = useState([]); 
   
   const [showSync, setShowSync] = useState(getStorage('qc_sheet_url', '') === '' && DEFAULT_SHEET_URL === '');
+  
   const [activeCell, setActiveCell] = useState({ agent: null, resultType: null });
   const [expandedCaseId, setExpandedCaseId] = useState(null);
   const [editingCase, setEditingCase] = useState(null); 
 
-  // FIX: Added Tailwind CSS and Font Injection
   useEffect(() => {
-    // Inject Thai Font
     if (!document.getElementById('thai-font-link')) {
       const link = document.createElement('link');
       link.id = 'thai-font-link'; link.rel = 'stylesheet';
       link.href = 'https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700;800&display=swap';
       document.head.appendChild(link);
     }
-    // Inject Tailwind CSS (Critical for styling)
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
-      script.id = 'tailwind-cdn';
-      script.src = 'https://cdn.tailwindcss.com';
+      script.id = 'tailwind-cdn'; script.src = 'https://cdn.tailwindcss.com';
       document.head.appendChild(script);
     }
   }, []);
@@ -130,7 +128,7 @@ const App = () => {
     let intervalId;
     if (isAuthenticated && sheetUrl && sheetUrl.includes('http')) {
       fetchFromSheet(sheetUrl);
-      intervalId = setInterval(() => fetchFromSheet(sheetUrl), 1800000);
+      intervalId = setInterval(() => fetchFromSheet(sheetUrl), 1800000); // 30 mins
     }
     return () => clearInterval(intervalId);
   }, [sheetUrl, isAuthenticated]);
@@ -202,20 +200,54 @@ const App = () => {
 
   const handleUpdateCase = async () => {
     if (!appsScriptUrl) return alert("กรุณาตั้งค่า Apps Script URL");
-    if (editingCase.type === "ยังไม่ได้ตรวจ") { alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก"); return; }
+    
+    if (editingCase.type === "ยังไม่ได้ตรวจ") {
+      alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก");
+      return;
+    }
+
     setIsSaving(true);
     const backupData = [...data];
+
     try {
       const updateData = {
-        rowIndex: editingCase.rowIndex, result: editingCase.result, type: editingCase.type,
-        evaluations: editingCase.evaluations.map(e => e.value), comment: editingCase.comment
+        rowIndex: editingCase.rowIndex, 
+        result: editingCase.result,
+        type: editingCase.type,
+        evaluations: editingCase.evaluations.map(e => e.value), 
+        comment: editingCase.comment
       };
-      await fetch(appsScriptUrl, { method: 'POST', mode: 'no-cors', cache: 'no-cache', body: JSON.stringify(updateData) });
-      setData(prevData => prevData.map(item => item.id === editingCase.id ? { ...editingCase } : item));
-      setTimeout(() => { setIsSaving(false); setEditingCase(null); fetchFromSheet(sheetUrl); }, 1000);
-    } catch (err) { alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); setData(backupData); setIsSaving(false); }
+      
+      await fetch(appsScriptUrl, { 
+        method: 'POST', 
+        mode: 'no-cors', 
+        cache: 'no-cache', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(updateData) 
+      });
+      
+      // INSTANT UI UPDATE
+      setData(prevData => prevData.map(item => {
+        if (item.id === editingCase.id) {
+          return { ...editingCase };
+        }
+        return item;
+      }));
+
+      setTimeout(() => { 
+        setIsSaving(false); 
+        setEditingCase(null); 
+        fetchFromSheet(sheetUrl); 
+      }, 1000);
+
+    } catch (err) { 
+      alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
+      setData(backupData);
+      setIsSaving(false); 
+    }
   };
 
+  // --- Analytical Calculations ---
   const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))].sort(), [data]);
   const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisor).filter(s => s !== 'N/A'))].sort(), [data]);
   const availableTypes = useMemo(() => [...new Set(data.map(d => d.type).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
@@ -264,23 +296,12 @@ const App = () => {
     }));
   }, [filteredData]);
 
-  // TREND DATA CALCULATION (MONTHLY)
-  const trendData = useMemo(() => {
-    const months = availableMonths.length > 0 ? availableMonths : [...new Set(data.map(d => d.month))].sort();
-    return months.map(m => {
-      const mData = data.filter(d => d.month === m);
-      const mTotal = mData.length;
-      const mPass = mData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length;
-      return {
-        month: m,
-        rate: mTotal > 0 ? parseFloat(((mPass / mTotal) * 100).toFixed(1)) : 0
-      };
-    });
-  }, [data, availableMonths]);
-
   const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : filteredData, [filteredData, activeCell]);
   const passRate = useMemo(() => filteredData.length === 0 ? 0 : ((filteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / filteredData.length) * 100).toFixed(1), [filteredData]);
-  const totalAuditedFiltered = useMemo(() => filteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length, [filteredData]);
+
+  const totalAuditedFiltered = useMemo(() => {
+    return filteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
+  }, [filteredData]);
 
   const handleMatrixClick = (agentName, type) => {
     if (activeCell.agent === agentName && activeCell.resultType === type) setActiveCell({ agent: null, resultType: null });
@@ -293,18 +314,54 @@ const App = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white font-sans relative overflow-hidden" style={{ fontFamily: 'Sarabun, sans-serif' }}>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white font-sans relative overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full"></div>
-        <div className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-800 w-full max-w-[360px] text-center shadow-2xl relative z-10">
-          <div className="flex justify-center mb-6"><div className="p-4 bg-zinc-800 rounded-2xl border border-slate-700 shadow-inner"><IntageLogo className="scale-110" /></div></div>
-          <div className="space-y-1 mb-8"><h2 className="text-white font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2><p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full"></div>
+
+        <div className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-800 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-zinc-800 rounded-2xl border border-slate-700 shadow-inner">
+                <IntageLogo className="scale-110" />
+            </div>
+          </div>
+          <div className="space-y-1 mb-8">
+            <h2 className="text-white font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2>
+            <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
+          </div>
+          
           <form onSubmit={(e) => { e.preventDefault(); if(inputUser==='Admin'&&inputPass==='1234') setIsAuthenticated(true); else setLoginError('Login Failed'); }} className="space-y-4 text-left">
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label><div className="relative"><User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 text-white text-sm font-bold" placeholder="Username" /></div></div>
-            <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 text-white text-sm font-bold" placeholder="••••••••" /></div></div>
-            {loginError && <div className="bg-rose-500/10 border border-rose-500/20 py-2 rounded-lg flex items-center justify-center gap-2"><AlertCircle size={12} className="text-rose-500" /><p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p></div>}
-            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all italic text-xs flex items-center justify-center gap-2"><LogIn size={16} /> Access System</button>
+            <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
+                <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="Username" />
+                </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label>
+                <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="••••••••" />
+                </div>
+            </div>
+
+            {loginError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 py-2 rounded-lg flex items-center justify-center gap-2">
+                    <AlertCircle size={12} className="text-rose-500" />
+                    <p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p>
+                </div>
+            )}
+
+            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-95 italic text-xs">
+                <LogIn size={16} />
+                Access System
+            </button>
           </form>
-          <div className="mt-8 pt-6 border-t border-slate-800/50"><p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p></div>
+
+          <div className="mt-8 pt-6 border-t border-slate-800/50">
+            <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
+          </div>
         </div>
       </div>
     );
@@ -331,7 +388,7 @@ const App = () => {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-slate-100 font-sans custom-scrollbar" style={{ fontFamily: 'Sarabun, sans-serif' }}>
+    <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-slate-100 font-sans custom-scrollbar">
       
       <div className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsFilterSidebarOpen(false)} />
       <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-zinc-900 shadow-2xl transform transition-transform duration-300 ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto border-l border-slate-800 p-6`}>
@@ -358,20 +415,34 @@ const App = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => fetchFromSheet(sheetUrl)} disabled={loading} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all border ${loading ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-zinc-800 border-slate-700 hover:bg-slate-700 text-indigo-400'}`}>
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> {loading ? 'กำลังดึง...' : 'รีเฟรชข้อมูล'}
+            {/* ปุ่มรีเฟรชข้อมูลใหม่ */}
+            <button 
+              onClick={() => fetchFromSheet(sheetUrl)} 
+              disabled={loading}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-zinc-800 border-slate-700 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 shadow-indigo-900/10'}`}
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              {loading ? 'กำลังดึงข้อมูล...' : 'รีเฟรชข้อมูล'}
             </button>
-            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
-            <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>
-            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-800 rounded-2xl hover:text-indigo-400 text-slate-400 border border-slate-700 transition-colors"><User size={20} /></button>
+
+            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
+            <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>
+            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-800 rounded-2xl hover:text-indigo-400 text-slate-400 transition-colors border border-slate-700"><User size={20} /></button>
           </div>
         </header>
 
+        {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-                { label: 'จำนวนงานทั้งหมด', value: totalWorkByMonthOnly, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-slate-800' },
-                { label: 'ที่ตรวจแล้ว', value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, icon: Database, color: 'text-indigo-400', bg: 'bg-indigo-950/20 border-indigo-900/30' },
-                { label: 'อัตราผ่านเกณฑ์', value: `${passRate}%`, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-900/20' },
+                { label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', value: totalWorkByMonthOnly, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-slate-800' },
+                { 
+                  label: 'จำนวนที่ตรวจแล้ว (AC/BC ตาม Filter)', 
+                  value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, 
+                  icon: Database, 
+                  color: 'text-indigo-400', 
+                  bg: 'bg-indigo-950/20 border-indigo-900/30' 
+                },
+                { label: 'อัตราผ่านเกณฑ์', value: `${passRate}%`, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-900/20 shadow-emerald-900/5' },
                 { label: 'ควรปรับปรุง', value: filteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-900/20' },
                 { label: 'พบข้อผิดพลาด', value: filteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-900/20' }
             ].map((kpi, i) => (
@@ -383,37 +454,26 @@ const App = () => {
             ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex flex-col min-h-[350px]">
-                <h3 className="font-black text-white flex items-center gap-2 italic text-sm uppercase mb-6"><TrendingUp size={16} className="text-indigo-500" /> Quality Trend Analysis (% Pass Rate)</h3>
-                <div className="flex-1 w-full min-h-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                            <XAxis dataKey="month" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
-                            <YAxis stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} domain={[0, 100]} />
-                            <Tooltip contentStyle={{backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff'}} />
-                            <Line type="monotone" dataKey="rate" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1' }} activeDot={{ r: 8, stroke: '#fff' }} />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex flex-col min-h-[350px]">
+        {/* --- VISUAL INTELLIGENCE SECTION --- */}
+        <div className="flex flex-col lg:flex-row gap-6">
+            <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex-1 flex flex-col min-h-[300px]">
                 <h3 className="font-black text-white flex items-center gap-2 italic text-sm uppercase mb-6"><PieChart size={16} className="text-indigo-500" /> Case Composition Summary</h3>
-                <div className="flex-1 w-full min-h-[220px]">
+                <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie data={chartData} dataKey="count" innerRadius={60} outerRadius={85} paddingAngle={5}>
                                 {chartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                             </Pie>
-                            <Tooltip contentStyle={{backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px'}} />
+                            <Tooltip contentStyle={{backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px', color: '#f8fafc'}} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">
                     {chartData.map(c => (
-                        <div key={c.full} className="flex items-center gap-2"><div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div><span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span></div>
+                        <div key={c.full} className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div>
+                            <span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span>
+                        </div>
                     ))}
                 </div>
             </div>
@@ -421,25 +481,24 @@ const App = () => {
 
         <div className="bg-zinc-900 rounded-[3rem] shadow-2xl border border-slate-800 overflow-hidden">
             <div className="p-8 border-b border-slate-800 bg-zinc-900/50 flex items-center justify-between">
-                <h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight"><Users size={20} className="text-indigo-500" /> สรุปพนักงาน x ผลการตรวจ (Cross Matrix)</h3>
-                <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-[10px] font-black uppercase transition-all border border-slate-700"><Download size={14}/> Export CSV</button>
+                <div><h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight"><Users size={20} className="text-indigo-500" /> สรุปพนักงาน (ID : ชื่อ) x ผลการตรวจ</h3></div>
             </div>
             <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                 <table className="w-full text-left text-sm border-separate border-spacing-0 min-w-[1200px]">
-                    <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-slate-200 text-[10px] uppercase tracking-widest border-b border-slate-800">
+                    <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-slate-200 text-[10px] uppercase tracking-widest border-b border-slate-800 shadow-md">
                         <tr>
                             <th rowSpan="2" className="px-8 py-6 border-b border-slate-800 border-r border-slate-800 bg-zinc-900 w-64 text-slate-100 italic">Interviewer (ID : Name)</th>
-                            <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-slate-800 bg-zinc-900/40 text-indigo-400 italic">QC Result Distribution</th>
+                            <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-slate-800 bg-zinc-900/40 text-indigo-400 text-[11px] font-black italic uppercase">QC Result Distribution</th>
                             <th rowSpan="2" className="px-8 py-6 text-center bg-slate-800 text-white border-b border-slate-800 border-l border-slate-800">Total</th>
                         </tr>
                         <tr className="bg-zinc-900/80 text-white">
-                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-slate-800 border-r border-slate-800 max-w-[180px] text-slate-400"><span className="line-clamp-2">{formatResultDisplay(type)}</span></th>)}
+                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-slate-800 border-r border-slate-800 max-w-[180px] text-slate-400"><span className="line-clamp-2" title={type}>{formatResultDisplay(type)}</span></th>)}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800 font-bold">
                         {agentSummary.map((agent, i) => (
-                        <tr key={i} className="hover:bg-indigo-950/20 transition-colors">
-                            <td className="px-8 py-5 text-white border-r border-slate-800">{agent.name}</td>
+                        <tr key={i} className="hover:bg-indigo-950/20 transition-colors group">
+                            <td className="px-8 py-5 text-white border-r border-slate-800 font-medium">{agent.name}</td>
                             {RESULT_ORDER.map(type => {
                             const val = agent[type]; const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
                             return (
@@ -462,9 +521,9 @@ const App = () => {
                     <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-2 italic"><MessageSquare size={16} className="text-indigo-500" /> รายละเอียดรายเคส</h3>
                     {activeCell.agent && <div className="flex items-center gap-2 mt-2"><span className="px-3 py-1 bg-indigo-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse">กำลังแสดง: {activeCell.agent}</span><button onClick={() => setActiveCell({ agent: null, resultType: null })} className="text-slate-500 hover:text-white"><X size={12}/></button></div>}
                 </div>
-                <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" placeholder="ค้นหาเลขชุด หรือพนักงาน..." className="w-full pl-12 pr-6 py-4 bg-slate-800/30 border border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-600 outline-none text-white shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
+                <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-slate-800/30 border border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-600 outline-none text-white shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
             </div>
-            <div className="overflow-auto max-h-[800px] custom-scrollbar">
+            <div className="overflow-auto max-h-[1000px] custom-scrollbar">
                 <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
                 <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-slate-800 font-black text-slate-300 uppercase tracking-widest">
                     <tr><th className="px-8 py-5 border-r border-slate-800/50">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-800/50">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-800/50">ผลสรุป</th><th className="px-8 py-5">QC Comment & Audio</th></tr>
@@ -473,56 +532,80 @@ const App = () => {
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
                         const isExpanded = expandedCaseId === item.id; const isEditing = editingCase && editingCase.id === item.id;
                         const isNewAudit = item.type === "ยังไม่ได้ตรวจ";
+
                         return (
                         <React.Fragment key={item.id}>
-                            <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-950/20' : 'hover:bg-slate-800/40'}`}>
+                            <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-950/20 shadow-inner' : 'hover:bg-slate-800/40'}`}>
                                 <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-300">{item.questionnaireNo}</span></div></td>
-                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white text-sm group-hover:text-indigo-400 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-700" />}</div><div className="text-[9px] text-slate-500 font-bold mt-0.5 italic uppercase tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisor}</div></td>
+                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white text-sm group-hover:text-indigo-400 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-700" />}</div><div className="text-[9px] text-slate-500 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisor}</div></td>
                                 <td className="px-4 py-6 text-center border-r border-slate-800/20"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
                                 <td className="px-8 py-6">
-                                    <p className="text-slate-400 italic max-w-sm truncate group-hover:text-slate-200 font-sans leading-relaxed">{item.comment ? `"${item.comment}"` : '-'}</p>
-                                    {item.audio && item.audio.includes('http') && (<a href={item.audio} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-2 inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-black text-[9px] uppercase"><PlayCircle size={14} /> Listen Recording</a>)}
+                                    <p className="text-slate-400 italic max-w-sm truncate group-hover:text-slate-200 transition-colors font-sans leading-relaxed">{item.comment ? `"${item.comment}"` : '-'}</p>
+                                    {item.audio && item.audio.includes('http') && (<a href={item.audio} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-2 inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-black text-[9px] uppercase transition-all hover:translate-x-1"><PlayCircle size={14} /> Listen Recording</a>)}
                                 </td>
                             </tr>
                             {isExpanded && (
-                            <tr className="bg-slate-900/40">
+                            <tr className="bg-slate-900/40 animate-in slide-in-from-top-2 duration-300">
                                 <td colSpan={4} className="p-8 border-b border-slate-800 text-white">
                                 <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.questionnaireNo})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขข้อมูลสรุปผลและคะแนน"}</p></div></div>
+                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.questionnaireNo})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
-                                    {!isEditing ? (<button onClick={() => setEditingCase({...item})} className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl text-[10px] font-black uppercase"><Edit2 size={12} className="text-indigo-400" /> {isNewAudit ? "เริ่มตรวจงาน" : "แก้ไขข้อมูล"}</button>) : (<div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} บันทึก</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase border border-slate-700">ยกเลิก</button></div>)}
+                                    {!isEditing ? (
+                                        <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
+                                            <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-400"}/> 
+                                            {isNewAudit ? "เริ่มตรวจงานนี้" : "แก้ไขข้อมูล"}
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
+                                    )}
                                     </div>
                                 </div>
+
                                 {isEditing && (
                                     <div className="mb-8 p-6 bg-indigo-950/20 border border-indigo-500/20 rounded-[2rem] shadow-inner">
                                         <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC)</div>
                                         <div className="flex gap-4">
-                                            {['AC', 'BC'].map(t => (<button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase border transition-all ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-950 text-slate-500 border-slate-800'}`}>{t} MODE</button>))}
+                                            {['AC', 'BC'].map(t => (
+                                                <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/40' : 'bg-zinc-950 text-slate-500 border-slate-800 hover:border-slate-700'}`}>
+                                                    {t} MODE
+                                                </button>
+                                            ))}
+                                            {editingCase.type === "ยังไม่ได้ตรวจ" && <p className="text-rose-500 text-[10px] font-black uppercase self-center animate-pulse">*** กรุณาเลือก AC หรือ BC เพื่อบันทึกงาน</p>}
                                         </div>
                                     </div>
                                 )}
+
+                                {item.audio && item.audio.includes('http') && (
+                                    <div className="mb-8 p-6 bg-slate-950/50 border border-slate-800 rounded-[2rem] flex items-center justify-between shadow-inner">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-3 bg-indigo-600 text-white rounded-2xl animate-pulse"><PlayCircle size={20} /></div>
+                                            <div><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Audio Recording File</p><p className="text-xs font-black text-slate-200">ไฟล์เสียงบันทึกการสัมภาษณ์</p></div>
+                                        </div>
+                                        <a href={item.audio} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all shadow-lg shadow-indigo-900/20"><ExternalLink size={14} /> OPEN PLAYER</a>
+                                    </div>
+                                )}
                                 <div className="mb-8 p-6 bg-slate-900/80 border border-slate-800 rounded-[2rem] shadow-inner">
-                                    <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Star size={16} /> สรุปผลการสัมภาษณ์แบบละเอียด</div>
-                                    {isEditing ? (<div className="relative"><select className="w-full p-4 bg-slate-950 border border-indigo-600/30 rounded-2xl text-[11px] font-black text-white appearance-none outline-none" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-slate-200 bg-slate-950/50 p-4 rounded-xl border border-slate-800 leading-relaxed">{item.result}</p>)}
+                                    <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Star size={16} /> สรุปผลการสัมภาษณ์แบบละเอียด (Column M)</div>
+                                    {isEditing ? (<div className="relative"><select className="w-full p-4 bg-slate-950 border border-indigo-600/30 rounded-2xl text-[11px] font-black text-white focus:ring-2 focus:ring-indigo-600 outline-none appearance-none shadow-lg shadow-indigo-900/10" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-slate-200 bg-slate-950/50 p-4 rounded-xl border border-slate-800 leading-relaxed shadow-sm">{item.result}</p>)}
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                                     {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
                                     <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-indigo-600/50 ring-1 ring-indigo-600/20' : 'border-slate-800'}`}>
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
-                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
+                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
                                     </div>
                                     ))}
                                 </div>
                                 <div className="mt-8">
-                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment</p>
-                                    {isEditing ? (<textarea className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-sm italic text-white outline-none min-h-[120px] focus:ring-2 focus:ring-indigo-600 font-sans" value={editingCase.comment} onChange={e => setEditingCase({...editingCase, comment: e.target.value})}/>) : (<div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 shadow-sm"><p className="text-sm text-slate-200 font-medium italic leading-relaxed font-sans">"{item.comment || 'ไม่มีคอมเมนต์'}"</p></div>)}
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column AC)</p>
+                                    {isEditing ? (<textarea className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-sm italic text-white outline-none min-h-[120px] focus:ring-2 focus:ring-indigo-600 shadow-inner font-sans" value={editingCase.comment} onChange={e => setEditingCase({...editingCase, comment: e.target.value})}/>) : (<div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 shadow-sm"><p className="text-sm text-slate-200 font-medium italic leading-relaxed font-sans">"{item.comment || 'ไม่มีคอมเมนต์'}"</p></div>)}
                                 </div>
                                 </td>
                             </tr>
                             )}
                         </React.Fragment>
                         );
-                    }) : (<tr><td colSpan={4} className="px-8 py-24 text-center text-slate-500 font-black uppercase italic tracking-widest text-lg opacity-20">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>)}
+                    }) : (<tr><td colSpan={4} className="px-8 py-24 text-center text-slate-500 font-black uppercase italic tracking-widest text-lg opacity-20 italic">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>)}
                 </tbody>
                 </table>
             </div>
@@ -531,12 +614,12 @@ const App = () => {
 
       {(showSync || error) && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4">
-            <div className="bg-zinc-900 w-full max-w-2xl rounded-[3rem] p-10 border border-slate-800 shadow-2xl relative">
+            <div className="bg-zinc-900 w-full max-w-2xl rounded-[3rem] p-10 border border-slate-800 shadow-2xl relative animate-in zoom-in duration-300">
                 <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
                 <div className="flex items-center justify-between mb-10"><h3 className="text-xl font-black flex items-center gap-3 text-white uppercase italic tracking-tight">{error ? 'Connection Error' : 'ตั้งค่าระบบ'}</h3>{data.length > 0 && <button onClick={() => {setShowSync(false); setError(null);}} className="text-slate-500 hover:text-white transition-colors"><X size={28} /></button>}</div>
                 <div className="space-y-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Google Sheets CSV Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600" value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Apps Script API Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Google Sheets CSV Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Apps Script API Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
                     <div className="flex gap-4 pt-4"><button onClick={() => fetchFromSheet(sheetUrl)} disabled={loading || !sheetUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-900/30 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT</button></div>
                     {error && <p className="text-center text-[10px] text-rose-500 font-black mt-2 uppercase italic animate-pulse">{error}</p>}
                 </div>
