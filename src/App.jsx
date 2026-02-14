@@ -8,13 +8,11 @@ import {
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
- * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล (High Performance)
- * - อัปเดต: เพิ่มระบบดักจับ Error กรณี Apps Script ส่ง Text/HTML แทน JSON
- * - อัปเดต: ปรับปรุงการแจ้งเตือน Error ให้เข้าใจง่ายขึ้น
+ * - อัปเดต: ใช้ Apps Script URL ล่าสุดที่คุณให้มา
+ * - อัปเดต: เพิ่มการแจ้งเตือนกรณีเชื่อมต่อสำเร็จแต่ Sheet ว่างเปล่า
  */
 
-// ค่า Default Apps Script URL ที่ User ต้องเอามาใส่ (ถ้ามีของเดิมให้ใส่ของเดิม)
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpee9kgf_wdEgrHIsTD3ECiaSwCevocNL79vWqCi5s6XrvdI1sQc8ekhu_D4j77hz0/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
@@ -135,7 +133,13 @@ const App = () => {
         }
       }
       
-      if (!Array.isArray(allRows) || allRows.length === 0) throw new Error("ไม่พบข้อมูล หรือ Format ไม่ถูกต้อง (ต้องเป็น Array)");
+      if (allRows.error) {
+          throw new Error(`Apps Script Error: ${allRows.error}`);
+      }
+
+      if (!Array.isArray(allRows)) throw new Error("Format ข้อมูลไม่ถูกต้อง (ต้องเป็น Array)");
+      
+      if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า! (กรุณาเช็คว่าข้อมูลอยู่ที่ Tab แรกสุดหรือไม่)");
 
       // 2. Logic ในการหา Header และ Map ข้อมูล (UPDATED for Robustness)
       let headerIdx = allRows.findIndex(row => 
