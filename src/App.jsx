@@ -8,14 +8,17 @@ import {
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
- * - อัปเดต: ใช้ Apps Script URL ล่าสุดที่คุณให้มา
- * - อัปเดต: เพิ่มการแจ้งเตือนกรณีเชื่อมต่อสำเร็จแต่ Sheet ว่างเปล่า
  * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
- * - FIX: การแสดงผลทันทีหลังบันทึก (Instant Update)
+ * - FIX: บังคับอ่าน Interviewer ID (Column J/Index 9) และ Name (Column K/Index 10)
+ * - FIX: บังคับอ่าน Result (Column M/Index 12) และ Comment (Column AC/Index 28)
+ * - FIX: แก้ไข Logic การจับคู่ Result (ใช้ startsWith แทน includes) เพื่อแก้ปัญหา "ไม่ผ่านเกณฑ์" กลายเป็น "ผ่านเกณฑ์"
+ * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
+ * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
 
+// ลำดับการแสดงผล (ใช้ในการ Match ค่าจาก Sheet)
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
   'ผ่านเกณฑ์: ปฏิบัติงานได้ถูกต้อง (ทำได้ตามมาตรฐาน มีข้อผิดพลาดเล็กน้อยที่ไม่กระทบคุณภาพข้อมูลหลัก)',
@@ -111,8 +114,9 @@ const App = () => {
   const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      // 1. Fetch content
-      const response = await fetch(urlToFetch);
+      // 1. Fetch content with cache busting
+      const fetchUrl = `${urlToFetch}${urlToFetch.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      const response = await fetch(fetchUrl);
       
       if (!response.ok) {
          throw new Error(`Server returned ${response.status} ${response.statusText}`);
@@ -142,7 +146,7 @@ const App = () => {
       
       if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า!");
 
-      // 2. Logic ในการหา Header
+      // 2. Logic ในการหา Header (ใช้หา Date, Month, Sup)
       let headerIdx = allRows.findIndex(row => 
         Array.isArray(row) && row.some(cell => 
           (cell && cell.toString().toLowerCase().includes("interviewer")) || 
@@ -178,44 +182,59 @@ const App = () => {
         });
       };
 
+      // หา Index ของ Columns ทั่วไป
       const idx = {
         month: getIdx(["เดือน", "month"]), 
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
         touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), 
         type: getIdx(["AC / BC", "type", "ac/bc"]), 
         sup: getIdx(["Supervisor", "sup"]), 
-        agent: getIdx(["Interviewer", "name", "ชื่อ"]),
         questionnaireNo: getIdx(["questionnaire", "no.", "เลขชุด", "id"]), 
-        result: getIdx(["สรุปผลการสัมภาษณ์", "result", "grade"]), 
-        comment: getIdx(["Comment", "ความคิดเห็น", "ข้อเสนอแนะ"]),
         audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
       };
 
-      // FIX: บังคับเริ่มอ่านคะแนนที่ Column P (Index 15) จำนวน 13 ข้อ
-      // A=0, ..., O=14, P=15
-      const EVAL_START_INDEX = 15; 
+      // FIX: Force Columns (Hardcoded to match user sheet structure)
+      const COL_INTERVIEWER_ID = 9;  // Column J
+      const COL_INTERVIEWER_NAME = 10; // Column K
+      const COL_RESULT = 12; // Column M
+      const COL_COMMENT = 28; // Column AC
+      const EVAL_START_INDEX = 15; // Column P
       const EVAL_COUNT = 13; // P to AB
 
       const parsedData = allRows.slice(headerIdx + 1)
         .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
         .filter(({ row }) => {
           if (!row || !Array.isArray(row)) return false;
-          const agentColIndex = idx.agent !== -1 ? idx.agent : 10; 
-          if (row.length <= agentColIndex) return false;
-          const agentCode = row[agentColIndex]?.toString().trim() || "";
+          // FIX: Force check Column K (Index 10) for existence
+          const agentCode = row[COL_INTERVIEWER_NAME]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
         })
         .map(({ row, actualRowNumber }, index) => {
-          let rawResult = (idx.result !== -1 && row[idx.result]) ? row[idx.result].toString().trim() : "N/A";
+          
+          // FIX: Read Result from Column M (Index 12)
+          let rawResult = (row[COL_RESULT]) ? row[COL_RESULT].toString().trim() : "N/A";
           let cleanResult = rawResult;
-          const matchedResult = RESULT_ORDER.find(opt => rawResult.includes(opt.split(':')[0].trim()));
+          
+          // FIX: Logic startsWith แทน includes เพื่อป้องกัน "ไม่ผ่านเกณฑ์" ไป Match กับ "ผ่านเกณฑ์"
+          const matchedResult = RESULT_ORDER.find(opt => {
+              const prefix = opt.split(':')[0].trim();
+              return rawResult.startsWith(prefix);
+          });
+          
           if (matchedResult) cleanResult = matchedResult;
           
-          const agentColIndex = idx.agent !== -1 ? idx.agent : 10;
-          const agentId = row[agentColIndex]?.trim() || 'Unknown';
+          // FIX: Force read Interviewer ID from Column J (Index 9)
+          const interviewerId = row[COL_INTERVIEWER_ID] ? row[COL_INTERVIEWER_ID].toString().trim() : '-';
+
+          // FIX: Force read Interviewer Name from Column K (Index 10) always
+          const agentId = row[COL_INTERVIEWER_NAME] ? row[COL_INTERVIEWER_NAME].toString().trim() : 'Unknown';
           
-          const displayAgent = agentId;
+          // Display format: ID : Name
+          const displayAgent = `${interviewerId} : ${agentId}`;
           
+          // FIX: Read Comment from Column AC (Index 28)
+          const commentVal = (row[COL_COMMENT]) ? row[COL_COMMENT].toString() : '';
+
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
@@ -236,10 +255,12 @@ const App = () => {
             id: index, rowIndex: actualRowNumber, 
             month: (idx.month !== -1 && row[idx.month]) ? row[idx.month] : 'N/A', 
             date: (idx.date !== -1 && row[idx.date]) ? row[idx.date] : 'N/A', 
-            agent: displayAgent, 
+            agent: displayAgent, // ใช้ค่าที่รวม ID+Name แล้ว
+            rawName: agentId,    // เก็บชื่อดิบไว้ใช้
+            interviewerId: interviewerId, // Store Interviewer ID
             questionnaireNo: (idx.questionnaireNo !== -1 && row[idx.questionnaireNo]) ? row[idx.questionnaireNo] : '-', 
             result: cleanResult, 
-            comment: (idx.comment !== -1 && row[idx.comment]) ? row[idx.comment] : '', 
+            comment: commentVal, // Use Forced Column AC
             audio: (idx.audio !== -1 && row[idx.audio]) ? row[idx.audio] : '', 
             touchpoint: (idx.touchpoint !== -1 && row[idx.touchpoint]) ? row[idx.touchpoint] : 'N/A', 
             supervisor: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
@@ -668,7 +689,7 @@ const App = () => {
                             <tr className="bg-slate-900/40 animate-in slide-in-from-top-2 duration-300">
                                 <td colSpan={4} className="p-8 border-b border-slate-800 text-white">
                                 <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.questionnaireNo})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
+                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.interviewerId} : {item.rawName})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
                                     {!isEditing ? (
                                         <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
@@ -710,9 +731,11 @@ const App = () => {
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                                     {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
-                                    <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-indigo-600/50 ring-1 ring-indigo-600/20' : 'border-slate-800'}`}>
+                                    <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-slate-800 opacity-60 cursor-not-allowed' : 'border-slate-800'}`}>
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
-                                        {isEditing ? (<div className="relative"><select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] font-black text-white appearance-none outline-none focus:ring-1 focus:ring-indigo-600" value={evalItem.value} onChange={(e) => { const newEvals = [...editingCase.evaluations]; newEvals[eIdx].value = e.target.value; setEditingCase({...editingCase, evaluations: newEvals}); }}>{SCORE_OPTIONS.map(opt => (<option key={opt} value={opt}>{SCORE_LABELS[opt]}</option>))}</select><ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" /></div>) : (<div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div>)}
+                                        <div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>
+                                            {SCORE_LABELS[evalItem.value] || evalItem.value}
+                                        </div>
                                     </div>
                                     ))}
                                 </div>
