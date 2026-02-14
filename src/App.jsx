@@ -4,16 +4,18 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (MODERN INDIGO THEME)
- * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล
- * - อัปเดต: เพิ่มปุ่ม Refresh ข้อมูลใน Header
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
+ * ระบบวิเคราะห์ผลการตรวจ QC พร้อมระบบแก้ไขข้อมูล (High Performance)
+ * - อัปเดต: เปลี่ยนระบบดึงข้อมูลจาก CSV เป็น JSON ผ่าน Apps Script (Method 1)
+ * - อัปเดต: เพิ่มความยืดหยุ่นในการหา Header Row (แก้ปัญหาหาคอลัมน์ไม่เจอ)
+ * - อัปเดต: รวมช่อง Link เหลือช่องเดียวเพื่อความ Seamless
  */
 
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHePu18q6f93lQqVW5_JNv6UygyYRGNjT5qOq4nSrROCnGxt1pkdgiPT91rm-_lVpku-PW-LWs-ufv/pub?gid=470556665&single=true&output=csv"; 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCOsj8GHe3LRX7bIa1eRy-nqf7o5sseCS4XRXPiMgHuw-9-1vePF1yOBA_NA3BL3WL/exec";
+// ค่า Default Apps Script URL ที่ User ต้องเอามาใส่ (ถ้ามีของเดิมให้ใส่ของเดิม)
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpee9kgf_wdEgrHIsTD3ECiaSwCevocNL79vWqCi5s6XrvdI1sQc8ekhu_D4j77hz0/exec";
 
 const RESULT_ORDER = [
   'ดีเยี่ยม: ครบถ้วนตามมาตรฐาน (พนักงานทำได้ดีทุกข้อ น้ำเสียงเป็นมืออาชีพ ข้อมูลแม่นยำ 100%)',
@@ -55,31 +57,6 @@ const IntageLogo = ({ className = "h-8" }) => (
   </div>
 );
 
-const parseCSV = (text) => {
-  const result = [];
-  let row = [];
-  let cell = '';
-  let inQuotes = false;
-  if (!text) return [];
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]; const nextChar = text[i + 1];
-    if (inQuotes) {
-      if (char === '"' && nextChar === '"') { cell += '"'; i++; }
-      else if (char === '"') inQuotes = false;
-      else cell += char;
-    } else {
-      if (char === '"') inQuotes = true;
-      else if (char === ',') { row.push(cell); cell = ''; }
-      else if (char === '\r' || char === '\n') {
-        row.push(cell); if (row.length > 1 || row[0] !== '') result.push(row);
-        row = []; cell = ''; if (char === '\r' && nextChar === '\n') i++;
-      } else cell += char;
-    }
-  }
-  if (cell || row.length > 0) { row.push(cell); result.push(row); }
-  return result;
-};
-
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [inputUser, setInputUser] = useState('');
@@ -92,7 +69,6 @@ const App = () => {
   
   const getStorage = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch(e) { return fallback; } };
 
-  const [sheetUrl, setSheetUrl] = useState(getStorage('qc_sheet_url', DEFAULT_SHEET_URL));
   const [appsScriptUrl, setAppsScriptUrl] = useState(getStorage('apps_script_url', DEFAULT_APPS_SCRIPT_URL));
   const [searchTerm, setSearchTerm] = useState('');
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
@@ -104,7 +80,7 @@ const App = () => {
   const [selectedAgents, setSelectedAgents] = useState([]); 
   const [selectedTypes, setSelectedTypes] = useState([]); 
   
-  const [showSync, setShowSync] = useState(getStorage('qc_sheet_url', '') === '' && DEFAULT_SHEET_URL === '');
+  const [showSync, setShowSync] = useState(getStorage('apps_script_url', '') === '' && DEFAULT_APPS_SCRIPT_URL === '');
   
   const [activeCell, setActiveCell] = useState({ agent: null, resultType: null });
   const [expandedCaseId, setExpandedCaseId] = useState(null);
@@ -126,76 +102,157 @@ const App = () => {
 
   useEffect(() => {
     let intervalId;
-    if (isAuthenticated && sheetUrl && sheetUrl.includes('http')) {
-      fetchFromSheet(sheetUrl);
-      intervalId = setInterval(() => fetchFromSheet(sheetUrl), 1800000); // 30 mins
+    if (isAuthenticated && appsScriptUrl && appsScriptUrl.includes('http')) {
+      fetchFromAppsScript(appsScriptUrl);
+      intervalId = setInterval(() => fetchFromAppsScript(appsScriptUrl), 60000); // 1 minute (Faster refresh)
     }
     return () => clearInterval(intervalId);
-  }, [sheetUrl, isAuthenticated]);
+  }, [appsScriptUrl, isAuthenticated]);
 
-  const fetchFromSheet = async (urlToFetch) => {
+  const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      const fetchUrl = `${urlToFetch.trim()}&t=${new Date().getTime()}`;
-      const response = await fetch(fetchUrl);
-      if (!response.ok) throw new Error("ไม่สามารถเข้าถึงไฟล์ได้");
-      const csvText = await response.text();
-      const allRows = parseCSV(csvText);
-      let headerIdx = allRows.findIndex(row => row.some(cell => cell.toString().toLowerCase().includes("interviewer") || cell.toString().includes("สรุปผล")));
-      if (headerIdx === -1) throw new Error("ไม่พบคอลัมน์ข้อมูลที่กำหนด");
-
-      const headers = allRows[headerIdx].map(h => h.trim());
-      const evaluationsList = headers.slice(15, 28);
-      const getIdx = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
-      let qNoIdx = headers.findIndex(h => h.toLowerCase().includes("questionnaire") || h.toLowerCase().includes("no.") || h.toLowerCase().includes("เลขชุด"));
-      if (qNoIdx === -1) qNoIdx = 3; 
-
-      const agentNameIdx = headers.findIndex(h => {
-        const s = h.toLowerCase();
-        return s.includes("ชื่อ") || s.includes("interviewer name") || s.includes("name");
-      });
-
-      const idx = {
-        month: getIdx("เดือน"), date: getIdx("วันที่สัมภาษณ์"), touchpoint: getIdx("TOUCH_POINT"), 
-        type: getIdx("AC / BC"), sup: getIdx("Supervisor"), agent: getIdx("Interviewer"),
-        questionnaireNo: qNoIdx, result: getIdx("สรุปผลการสัมภาษณ์"), comment: getIdx("Comment"),
-        audio: getIdx("ไฟล์เสียง") 
-      };
+      // 1. Fetch JSON from Apps Script (Method 1)
+      const response = await fetch(urlToFetch);
+      if (!response.ok) throw new Error("ไม่สามารถเชื่อมต่อกับ Apps Script ได้");
       
+      const allRows = await response.json(); // ได้ข้อมูลเป็น Array of Arrays ทันที
+      
+      if (!Array.isArray(allRows) || allRows.length === 0) throw new Error("ไม่พบข้อมูล หรือ Format ไม่ถูกต้อง");
+
+      // 2. Logic ในการหา Header และ Map ข้อมูล (UPDATED for Robustness)
+      let headerIdx = allRows.findIndex(row => 
+        Array.isArray(row) && row.some(cell => 
+          (cell && cell.toString().toLowerCase().includes("interviewer")) || 
+          (cell && cell.toString().includes("สรุปผล")) ||
+          (cell && cell.toString().toLowerCase().includes("name"))
+        )
+      );
+
+      // Fallback Strategy 1: Look for Date/Time
+      if (headerIdx === -1) {
+         headerIdx = allRows.findIndex(row => 
+            Array.isArray(row) && row.some(cell => 
+              (cell && cell.toString().toLowerCase().includes("date")) || 
+              (cell && cell.toString().includes("วันที่"))
+            )
+         );
+      }
+
+      // Fallback Strategy 2: Default to row 0 if headers look like strings
+      if (headerIdx === -1 && allRows.length > 0) {
+          console.warn("Could not find specific header keywords. Defaulting to row 0.");
+          headerIdx = 0;
+      }
+
+      if (headerIdx === -1) throw new Error("ไม่พบคอลัมน์ข้อมูลที่กำหนด (กรุณาตรวจสอบ Header Row)");
+
+      const headers = allRows[headerIdx].map(h => h ? h.toString().trim() : "");
+      
+      // Helper function to safely find column index
+      const getIdx = (keywords) => {
+        if (!Array.isArray(keywords)) keywords = [keywords];
+        return headers.findIndex(h => {
+            if (!h) return false;
+            const lowerH = h.toLowerCase();
+            return keywords.some(k => lowerH.includes(k.toLowerCase()));
+        });
+      };
+
+      // Column mapping with multiple keywords
+      const idx = {
+        month: getIdx(["เดือน", "month"]), 
+        date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
+        touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), 
+        type: getIdx(["AC / BC", "type", "ac/bc"]), 
+        sup: getIdx(["Supervisor", "sup"]), 
+        agent: getIdx(["Interviewer", "name", "ชื่อ"]),
+        questionnaireNo: getIdx(["questionnaire", "no.", "เลขชุด", "id"]), 
+        result: getIdx(["สรุปผลการสัมภาษณ์", "result", "grade"]), 
+        comment: getIdx(["Comment", "ความคิดเห็น", "ข้อเสนอแนะ"]),
+        audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
+      };
+
+      // Check essential columns
+      if (idx.agent === -1) {
+          // If agent column not found by name, try generic indices or fallback
+          // Assuming column 1 or 2 often has names if headers are messed up
+          // For now, let's proceed but warn
+          console.warn("Agent column ambiguous.");
+      }
+      
+      // Determine evaluations columns (Starting from 'Introduction' or similar)
+      let evalStartIdx = headers.findIndex(h => h && (h.includes("Introduction") || h.includes("น้ำเสียง") || h.includes("1.")));
+      if (evalStartIdx === -1) evalStartIdx = 15; // Default fallback
+
       const parsedData = allRows.slice(headerIdx + 1)
-        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
+        .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 })) // +1 header, +1 for 1-based index
         .filter(({ row }) => {
-          const agentCode = row[idx.agent]?.toString().trim() || "";
+          // Check bounds
+          if (!row || !Array.isArray(row)) return false;
+          // Use the detected agent index, or fallback to a likely column (e.g. 10 or 2)
+          const agentColIndex = idx.agent !== -1 ? idx.agent : 10; 
+          if (row.length <= agentColIndex) return false;
+          
+          const agentCode = row[agentColIndex]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
         })
         .map(({ row, actualRowNumber }, index) => {
-          let rawResult = row[idx.result]?.toString().trim() || "N/A";
+          let rawResult = (idx.result !== -1 && row[idx.result]) ? row[idx.result].toString().trim() : "N/A";
           let cleanResult = rawResult;
           const matchedResult = RESULT_ORDER.find(opt => rawResult.includes(opt.split(':')[0].trim()));
           if (matchedResult) cleanResult = matchedResult;
           
-          const agentId = row[idx.agent]?.trim() || 'Unknown';
-          const foundName = agentNameIdx !== -1 ? row[agentNameIdx]?.trim() : row[10]?.trim();
-          const agentName = foundName || '';
-          const displayAgent = agentName && agentName !== agentId ? `${agentId} : ${agentName}` : agentId;
+          const agentColIndex = idx.agent !== -1 ? idx.agent : 10;
+          const agentId = row[agentColIndex]?.trim() || 'Unknown';
           
-          const rawType = row[idx.type]?.toString().trim() || "";
+          // Try to find full name if agentId is just a code, assume name is next column or specific logic
+          // Simplified: Just use what we found in agent column
+          const displayAgent = agentId;
+          
+          const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
+
+          // Evaluations
+          const evaluations = [];
+          if (evalStartIdx > -1) {
+              for (let i = 0; i < 13; i++) { // Approx 13 criteria
+                  if (headers[evalStartIdx + i]) {
+                      evaluations.push({
+                          label: headers[evalStartIdx + i],
+                          value: row[evalStartIdx + i] || '-'
+                      });
+                  }
+              }
+          }
 
           return {
             id: index, rowIndex: actualRowNumber, 
-            month: row[idx.month] || 'N/A', date: row[idx.date] || 'N/A', 
-            agent: displayAgent, questionnaireNo: row[idx.questionnaireNo] || '-', 
-            result: cleanResult, comment: row[idx.comment] || '', audio: row[idx.audio] || '', 
-            touchpoint: row[idx.touchpoint] || 'N/A', supervisor: row[idx.sup] || 'N/A',
+            month: (idx.month !== -1 && row[idx.month]) ? row[idx.month] : 'N/A', 
+            date: (idx.date !== -1 && row[idx.date]) ? row[idx.date] : 'N/A', 
+            agent: displayAgent, 
+            questionnaireNo: (idx.questionnaireNo !== -1 && row[idx.questionnaireNo]) ? row[idx.questionnaireNo] : '-', 
+            result: cleanResult, 
+            comment: (idx.comment !== -1 && row[idx.comment]) ? row[idx.comment] : '', 
+            audio: (idx.audio !== -1 && row[idx.audio]) ? row[idx.audio] : '', 
+            touchpoint: (idx.touchpoint !== -1 && row[idx.touchpoint]) ? row[idx.touchpoint] : 'N/A', 
+            supervisor: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
             type: cleanType,
-            evaluations: evaluationsList.map((header, i) => ({ label: header, value: row[15 + i] || '-' }))
+            evaluations: evaluations
           };
         });
-      setData(parsedData); setLastUpdated(new Date().toLocaleTimeString('th-TH'));
-      try { localStorage.setItem('qc_sheet_url', urlToFetch); } catch(e) {}
+
+      setData(parsedData); 
+      setLastUpdated(new Date().toLocaleTimeString('th-TH'));
+      localStorage.setItem('apps_script_url', urlToFetch); // Save success URL
       setShowSync(false);
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+
+    } catch (err) { 
+        setError(err.message); 
+        console.error("Fetch Error:", err);
+    } finally { 
+        setLoading(false); 
+    }
   };
 
   const handleUpdateCase = async () => {
@@ -218,6 +275,7 @@ const App = () => {
         comment: editingCase.comment
       };
       
+      // Send POST to the SAME URL (Apps Script handles both GET/POST)
       await fetch(appsScriptUrl, { 
         method: 'POST', 
         mode: 'no-cors', 
@@ -226,7 +284,7 @@ const App = () => {
         body: JSON.stringify(updateData) 
       });
       
-      // INSTANT UI UPDATE
+      // INSTANT UI UPDATE (Optimistic Update)
       setData(prevData => prevData.map(item => {
         if (item.id === editingCase.id) {
           return { ...editingCase };
@@ -237,8 +295,9 @@ const App = () => {
       setTimeout(() => { 
         setIsSaving(false); 
         setEditingCase(null); 
-        fetchFromSheet(sheetUrl); 
-      }, 1000);
+        // Fetch new data via JSON immediately (Real-time check)
+        fetchFromAppsScript(appsScriptUrl); 
+      }, 1500);
 
     } catch (err) { 
       alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
@@ -295,6 +354,18 @@ const App = () => {
       color: getResultColor(key) 
     }));
   }, [filteredData]);
+
+  // --- New Monthly Performance Chart Data (Updated to %) ---
+  const monthlyPerformanceData = useMemo(() => {
+    return availableMonths.map(month => {
+        const monthData = data.filter(d => d.month === month);
+        const total = monthData.length;
+        // Logic for "Audited": type is not 'ยังไม่ได้ตรวจ', 'N/A', or ''
+        const audited = monthData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
+        const percent = total > 0 ? parseFloat(((audited / total) * 100).toFixed(1)) : 0;
+        return { name: month, audited, total, percent };
+    });
+  }, [data, availableMonths]);
 
   const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : filteredData, [filteredData, activeCell]);
   const passRate = useMemo(() => filteredData.length === 0 ? 0 : ((filteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / filteredData.length) * 100).toFixed(1), [filteredData]);
@@ -411,18 +482,18 @@ const App = () => {
           <div className="flex items-center gap-6"><div className="p-3 bg-slate-800 rounded-2xl border border-slate-700 shadow-inner"><IntageLogo /></div>
             <div>
               <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-indigo-500" />}</h1>
-              <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div> เชื่อมต่อแล้ว: {data.length} รายการ</> : "OFFLINE"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div>
+              <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div> REAL-TIME CONNECTED: {data.length} รายการ</> : "OFFLINE"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* ปุ่มรีเฟรชข้อมูลใหม่ */}
             <button 
-              onClick={() => fetchFromSheet(sheetUrl)} 
+              onClick={() => fetchFromAppsScript(appsScriptUrl)} 
               disabled={loading}
               className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-zinc-800 border-slate-700 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 shadow-indigo-900/10'}`}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'กำลังดึงข้อมูล...' : 'รีเฟรชข้อมูล'}
+              {loading ? 'SYNC DATA...' : 'SYNC DATA'}
             </button>
 
             <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
@@ -475,6 +546,46 @@ const App = () => {
                             <span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span>
                         </div>
                     ))}
+                </div>
+            </div>
+
+             {/* --- NEW: Monthly Performance Chart --- */}
+             <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex-1 flex flex-col min-h-[300px]">
+                <h3 className="font-black text-white flex items-center gap-2 italic text-sm uppercase mb-6"><BarChart2 size={16} className="text-emerald-500" /> Monthly Audit Progress (%)</h3>
+                <div className="flex-1 w-full min-h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={monthlyPerformanceData}>
+                            <defs>
+                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#10B981" stopOpacity={1}/>
+                                    <stop offset="100%" stopColor="#059669" stopOpacity={0.6}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                            <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} unit="%" />
+                            <Tooltip 
+                                cursor={{fill: '#1e293b', opacity: 0.4}}
+                                content={({ active, payload, label }) => {
+                                    if (active && payload && payload.length) {
+                                    return (
+                                        <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-xl">
+                                            <p className="text-slate-300 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
+                                            <p className="text-emerald-400 text-lg font-black">{payload[0].value}%</p>
+                                            <p className="text-slate-500 text-[10px] font-bold">Audited: {payload[0].payload.audited} / {payload[0].payload.total}</p>
+                                        </div>
+                                    );
+                                    }
+                                    return null;
+                                }}
+                            />
+                            <Bar dataKey="percent" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500}>
+                                {monthlyPerformanceData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.percent >= 100 ? '#3b82f6' : 'url(#barGradient)'} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
         </div>
@@ -618,9 +729,12 @@ const App = () => {
                 <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
                 <div className="flex items-center justify-between mb-10"><h3 className="text-xl font-black flex items-center gap-3 text-white uppercase italic tracking-tight">{error ? 'Connection Error' : 'ตั้งค่าระบบ'}</h3>{data.length > 0 && <button onClick={() => {setShowSync(false); setError(null);}} className="text-slate-500 hover:text-white transition-colors"><X size={28} /></button>}</div>
                 <div className="space-y-6">
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Google Sheets CSV Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} /></div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Apps Script API Link</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
-                    <div className="flex gap-4 pt-4"><button onClick={() => fetchFromSheet(sheetUrl)} disabled={loading || !sheetUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-900/30 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT</button></div>
+                    <div className="p-4 bg-indigo-900/30 border border-indigo-500/30 rounded-2xl mb-4">
+                      <p className="text-xs text-indigo-300 font-bold mb-1 flex items-center gap-2"><Zap size={14}/> SYSTEM UPGRADE (JSON API MODE)</p>
+                      <p className="text-[10px] text-slate-400">ระบบได้รับการอัปเกรดเป็นโหมดประสิทธิภาพสูง กรุณาใส่ Web App URL ของ Apps Script ลงในช่องด้านล่างเพียงช่องเดียว</p>
+                    </div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Apps Script Web App URL (Read & Write)</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
+                    <div className="flex gap-4 pt-4"><button onClick={() => fetchFromAppsScript(appsScriptUrl)} disabled={loading || !appsScriptUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-900/30 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT & SYNC</button></div>
                     {error && <p className="text-center text-[10px] text-rose-500 font-black mt-2 uppercase italic animate-pulse">{error}</p>}
                 </div>
             </div>
