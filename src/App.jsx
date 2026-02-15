@@ -20,6 +20,7 @@ import {
  * - UPDATE V1.3: แก้ไขการอ่าน QC Comment จาก Column AC (28) เป็น Column N (13)
  * - UPDATE V1.4: เพิ่ม User INV (Read-only) และปิด Settings สำหรับ INV
  * - UPDATE V1.6: แก้ไข Mapping -> CATI Supervisor = H (7), QC Comment = N (13)
+ * - UPDATE V1.7: เปลี่ยน Input Supervisor เป็น Dropdown List (เสกข์พลกฤต, ศรัณยกร, นิตยา, มณีรัตน์, Gullup)
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
@@ -38,6 +39,9 @@ const RESULT_ORDER = [
 
 const SCORE_OPTIONS = ['5', '4', '3', '2', '1', '-'];
 const SCORE_LABELS = { '5': '5.ดี', '4': '4.ค่อนข้างดี', '3': '3.ปานกลาง', '2': '2.ไม่ค่อยดี', '1': '1.ไม่ดีเลย', '-': '-' };
+
+// รายชื่อ Supervisor สำหรับ Dropdown
+const SUPERVISOR_OPTIONS = ['เสกข์พลกฤต', 'ศรัณยกร', 'นิตยา', 'มณีรัตน์', 'Gullup'];
 
 const formatResultDisplay = (text) => (text ? text.split('(')[0].trim() : '-');
 
@@ -867,18 +871,22 @@ const App = () => {
                                                 ))}
                                             </div>
 
-                                            {/* NEW: CATI Supervisor Input (Column H) */}
+                                            {/* NEW: CATI Supervisor Input (Column H) - Dropdown */}
                                             <div className="flex-1 bg-zinc-950 border border-slate-800 rounded-xl p-2 flex items-center gap-3 pl-4">
                                                 <UserPlus size={16} className="text-indigo-400"/>
-                                                <div className="flex-1">
+                                                <div className="flex-1 relative">
                                                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">CATI Supervisor (Column H)</p>
-                                                    <input 
-                                                        type="text" 
+                                                    <select 
                                                         value={editingCase.supervisor || ''} 
                                                         onChange={e=>setEditingCase({...editingCase, supervisor: e.target.value})} 
-                                                        className="w-full bg-transparent text-white text-xs font-bold outline-none placeholder:text-slate-700"
-                                                        placeholder="ระบุชื่อ Supervisor..."
-                                                    />
+                                                        className="w-full bg-transparent text-white text-xs font-bold outline-none appearance-none"
+                                                    >
+                                                        <option value="" className="bg-zinc-900 text-slate-500">ระบุชื่อ Supervisor...</option>
+                                                        {SUPERVISOR_OPTIONS.map(opt => (
+                                                            <option key={opt} value={opt} className="bg-zinc-900 text-white">{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown size={12} className="absolute right-0 top-1/2 translate-y-0 text-slate-600 pointer-events-none" />
                                                 </div>
                                             </div>
 
