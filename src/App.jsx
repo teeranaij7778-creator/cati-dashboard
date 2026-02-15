@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
+ * - THEME: LIGHT MODE UI/UX UPDATE
  * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
  * - FIX: บังคับอ่าน Interviewer ID (Column J/Index 9) และ Name (Column K/Index 10)
  * - FIX: บังคับอ่าน Result (Column M/Index 12)
@@ -22,6 +23,7 @@ import {
  * - UPDATE V1.6: แก้ไข Mapping -> CATI Supervisor = H (7), QC Comment = N (13)
  * - UPDATE V1.7: เปลี่ยน Input Supervisor เป็น Dropdown List (เสกข์พลกฤต, ศรัณยกร, นิตยา, มณีรัตน์, Gullup)
  * - UPDATE V1.8: เพิ่มแถว GRAND TOTAL ในตาราง QC Result พร้อมคำนวณ % แนวตั้ง
+ * - UPDATE V1.9: Redesign to Light Theme (White/Slate Tone)
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
@@ -65,8 +67,8 @@ const getResultColor = (fullText) => {
 
 const IntageLogo = ({ className = "h-8" }) => (
   <div className={`flex items-center gap-2 ${className}`}>
-    <div className="w-4 h-4 rounded-full bg-indigo-500 animate-pulse"></div>
-    <span className="font-black tracking-[0.15em] text-white italic text-lg">INTAGE</span>
+    <div className="w-4 h-4 rounded-full bg-indigo-600 animate-pulse"></div>
+    <span className="font-black tracking-[0.15em] text-slate-800 italic text-lg">INTAGE</span>
   </div>
 );
 
@@ -515,18 +517,19 @@ const App = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white font-sans relative overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 blur-[120px] rounded-full"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-slate-800 font-sans relative overflow-hidden">
+        {/* LIGHT MODE BACKGROUND SHAPES */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-200/30 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-200/30 blur-[120px] rounded-full"></div>
 
-        <div className="bg-zinc-900/80 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-800 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
+        <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-200 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
           <div className="flex justify-center mb-6">
-            <div className="p-4 bg-zinc-800 rounded-2xl border border-slate-700 shadow-inner">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
                 <IntageLogo className="scale-110" />
             </div>
           </div>
           <div className="space-y-1 mb-8">
-            <h2 className="text-white font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2>
+            <h2 className="text-slate-800 font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2>
             <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
           </div>
           
@@ -545,34 +548,34 @@ const App = () => {
             <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
                 <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="Username" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="Username" />
                 </div>
             </div>
 
             <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label>
                 <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-zinc-950 border border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-indigo-600 focus:border-transparent text-white transition-all text-sm font-bold placeholder:text-slate-700" placeholder="••••••••" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="••••••••" />
                 </div>
             </div>
 
             {loginError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 py-2 rounded-lg flex items-center justify-center gap-2">
+                <div className="bg-rose-50 border border-rose-200 py-2 rounded-lg flex items-center justify-center gap-2">
                     <AlertCircle size={12} className="text-rose-500" />
                     <p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p>
                 </div>
             )}
 
-            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-95 italic text-xs">
+            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 active:scale-95 italic text-xs">
                 <LogIn size={16} />
                 Access System
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-800/50">
-            <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
           </div>
         </div>
       </div>
@@ -584,14 +587,14 @@ const App = () => {
         <div className="flex items-center justify-between pl-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</label>
             <div className="flex gap-2">
-                <button onClick={onSelectAll} className="text-[9px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">เลือกทั้งหมด</button>
-                <button onClick={onClear} className="text-[9px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">ล้าง</button>
+                <button onClick={onSelectAll} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">เลือกทั้งหมด</button>
+                <button onClick={onClear} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">ล้าง</button>
             </div>
         </div>
-        <div className={`bg-slate-800/50 border border-slate-700/50 rounded-2xl p-2 overflow-y-auto custom-scrollbar ${maxH}`}>
+        <div className={`bg-slate-50 border border-slate-200 rounded-2xl p-2 overflow-y-auto custom-scrollbar ${maxH}`}>
             {items.map(item => (
-                <div key={item} onClick={() => onToggle(item)} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 transition-all ${selectedItems.includes(item) ? 'bg-indigo-600/20 text-indigo-100 shadow-lg border border-indigo-500/30' : 'hover:bg-slate-700/30 text-slate-400'}`}>
-                    {selectedItems.includes(item) ? <CheckSquare size={14} className="text-indigo-400 shrink-0" /> : <Square size={14} className="shrink-0" />}
+                <div key={item} onClick={() => onToggle(item)} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 transition-all ${selectedItems.includes(item) ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200' : 'hover:bg-slate-100 text-slate-500'}`}>
+                    {selectedItems.includes(item) ? <CheckSquare size={14} className="text-indigo-600 shrink-0" /> : <Square size={14} className="shrink-0" />}
                     <span className="truncate">{formatResultDisplay(item)}</span>
                 </div>
             ))}
@@ -600,16 +603,16 @@ const App = () => {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 md:p-8 text-slate-100 font-sans custom-scrollbar">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-800 font-sans custom-scrollbar">
       
-      <div className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsFilterSidebarOpen(false)} />
-      <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-zinc-900 shadow-2xl transform transition-transform duration-300 ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto border-l border-slate-800 p-6`}>
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800">
-             <div className="flex items-center gap-2"><div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-900/20"><Filter size={20} /></div><h3 className="font-black text-white uppercase italic tracking-tight">ตัวกรอง</h3></div>
-             <button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+      <div className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsFilterSidebarOpen(false)} />
+      <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl transform transition-transform duration-300 ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto border-l border-slate-200 p-6`}>
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
+             <div className="flex items-center gap-2"><div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-900/10"><Filter size={20} /></div><h3 className="font-black text-slate-800 uppercase italic tracking-tight">ตัวกรอง</h3></div>
+             <button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
           <div className="space-y-8">
-             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-400 bg-indigo-600/10 hover:bg-indigo-600/20 rounded-xl border border-indigo-600/20 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
+             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
              <FilterSection title="เดือน" items={availableMonths} selectedItems={selectedMonths} onToggle={(item) => handleToggleFilter(item, selectedMonths, setSelectedMonths)} onSelectAll={() => setSelectedMonths(availableMonths)} onClear={() => setSelectedMonths([])} />
              <FilterSection title="Supervisor" items={availableSups} selectedItems={selectedSups} onToggle={(item) => handleToggleFilter(item, selectedSups, setSelectedSups)} onSelectAll={() => setSelectedSups(availableSups)} onClear={() => setSelectedSups([])} />
              <FilterSection title="ประเภทงาน (AC / BC)" items={availableTypes} selectedItems={selectedTypes} onToggle={(item) => handleToggleFilter(item, selectedTypes, setSelectedTypes)} onSelectAll={() => setSelectedTypes(availableTypes)} onClear={() => setSelectedTypes([])} />
@@ -619,10 +622,10 @@ const App = () => {
        </aside>
 
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-zinc-900 p-6 rounded-[2.5rem] shadow-xl border border-slate-800">
-          <div className="flex items-center gap-6"><div className="p-3 bg-slate-800 rounded-2xl border border-slate-700 shadow-inner"><IntageLogo /></div>
+        <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-200">
+          <div className="flex items-center gap-6"><div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"><IntageLogo /></div>
             <div>
-              <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-indigo-500" />}</h1>
+              <h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-indigo-500" />}</h1>
               <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div> REAL-TIME CONNECTED: {data.length} รายการ</> : "OFFLINE"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div>
             </div>
           </div>
@@ -631,15 +634,15 @@ const App = () => {
             <button 
               onClick={() => fetchFromAppsScript(appsScriptUrl)} 
               disabled={loading}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-zinc-800 border-slate-700 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 shadow-indigo-900/10'}`}
+              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-indigo-500 hover:text-indigo-600 shadow-indigo-200/50'}`}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               {loading ? 'SYNC DATA...' : 'SYNC DATA'}
             </button>
 
-            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
-            {userRole === 'Admin' && <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>}
-            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-800 rounded-2xl hover:text-indigo-400 text-slate-400 transition-colors border border-slate-700"><User size={20} /></button>
+            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/20' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}><Filter size={16} /> ตัวกรอง</button>
+            {userRole === 'Admin' && <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black hover:bg-slate-700 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>}
+            <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-50 rounded-2xl hover:text-indigo-500 text-slate-400 transition-colors border border-slate-200"><User size={20} /></button>
           </div>
         </header>
 
@@ -651,27 +654,27 @@ const App = () => {
                   label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', 
                   value: totalWorkByMonthOnly, 
                   icon: FileText, 
-                  color: 'text-white', 
-                  bg: 'bg-zinc-900 border-slate-800',
-                  activeBg: 'bg-slate-800 ring-2 ring-slate-600'
+                  color: 'text-slate-800', 
+                  bg: 'bg-white border-slate-200',
+                  activeBg: 'bg-slate-100 ring-2 ring-slate-300'
                 },
                 { 
                   id: 'audited',
                   label: 'จำนวนที่ตรวจแล้ว (AC/BC)', 
                   value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, 
                   icon: Database, 
-                  color: 'text-indigo-400', 
-                  bg: 'bg-indigo-950/20 border-indigo-900/30',
-                  activeBg: 'bg-indigo-900/40 ring-2 ring-indigo-500'
+                  color: 'text-indigo-600', 
+                  bg: 'bg-indigo-50 border-indigo-100',
+                  activeBg: 'bg-indigo-100 ring-2 ring-indigo-300'
                 },
                 { 
                   id: 'pass',
                   label: 'อัตราผ่านเกณฑ์', 
                   value: `${passRate}%`, 
                   icon: CheckCircle, 
-                  color: 'text-emerald-500', 
-                  bg: 'bg-emerald-500/10 border-emerald-900/20 shadow-emerald-900/5',
-                  activeBg: 'bg-emerald-500/20 ring-2 ring-emerald-500'
+                  color: 'text-emerald-600', 
+                  bg: 'bg-emerald-50 border-emerald-100',
+                  activeBg: 'bg-emerald-100 ring-2 ring-emerald-300'
                 },
                 { 
                   id: 'improve',
@@ -679,8 +682,8 @@ const App = () => {
                   value: baseFilteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, 
                   icon: AlertTriangle, 
                   color: 'text-amber-500', 
-                  bg: 'bg-amber-500/10 border-amber-900/20',
-                  activeBg: 'bg-amber-500/20 ring-2 ring-amber-500'
+                  bg: 'bg-amber-50 border-amber-100',
+                  activeBg: 'bg-amber-100 ring-2 ring-amber-300'
                 },
                 { 
                   id: 'error',
@@ -688,8 +691,8 @@ const App = () => {
                   value: baseFilteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, 
                   icon: XCircle, 
                   color: 'text-rose-500', 
-                  bg: 'bg-rose-500/10 border-rose-900/20',
-                  activeBg: 'bg-rose-500/20 ring-2 ring-rose-500'
+                  bg: 'bg-rose-50 border-rose-100',
+                  activeBg: 'bg-rose-100 ring-2 ring-rose-300'
                 }
             ].map((kpi) => {
                 const isActive = activeKpiFilter === kpi.id || (kpi.id === 'total' && activeKpiFilter === null);
@@ -700,10 +703,10 @@ const App = () => {
                   <button 
                     key={kpi.id} 
                     onClick={() => handleKpiClick(isTotal ? null : kpi.id)}
-                    className={`text-left p-6 rounded-[2.5rem] border shadow-sm transition-all duration-200 active:scale-95 group relative overflow-hidden ${isActive && !isTotal ? kpi.activeBg : kpi.bg} ${!isActive ? 'hover:border-slate-600' : ''}`}
+                    className={`text-left p-6 rounded-[2.5rem] border shadow-sm transition-all duration-200 active:scale-95 group relative overflow-hidden ${isActive && !isTotal ? kpi.activeBg : kpi.bg} ${!isActive ? 'hover:border-slate-300' : ''}`}
                   >
-                    {isActive && !isTotal && <div className="absolute top-3 right-4 text-[10px] font-black uppercase text-white bg-black/30 px-2 py-0.5 rounded-full flex items-center gap-1"><MousePointerClick size={10}/> Filtering</div>}
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-slate-800/50 ${kpi.color}`}><kpi.icon size={16} /></div>
+                    {isActive && !isTotal && <div className="absolute top-3 right-4 text-[10px] font-black uppercase text-white bg-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1"><MousePointerClick size={10}/> Filtering</div>}
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-white border border-slate-100 shadow-sm ${kpi.color}`}><kpi.icon size={16} /></div>
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
                     <h2 className={`text-3xl font-black ${kpi.color} tracking-tighter mt-1 uppercase`}>{kpi.value}</h2>
                   </button>
@@ -713,15 +716,15 @@ const App = () => {
 
         {/* --- VISUAL INTELLIGENCE SECTION --- */}
         <div className="flex flex-col lg:flex-row gap-6">
-            <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex-1 flex flex-col min-h-[300px]">
-                <h3 className="font-black text-white flex items-center gap-2 italic text-sm uppercase mb-6"><PieChart size={16} className="text-indigo-500" /> Case Composition Summary</h3>
+            <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
+                <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><PieChart size={16} className="text-indigo-500" /> Case Composition Summary</h3>
                 <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie data={chartData} dataKey="count" innerRadius={60} outerRadius={85} paddingAngle={5}>
                                 {chartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                             </Pie>
-                            <Tooltip contentStyle={{backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px', color: '#f8fafc'}} />
+                            <Tooltip contentStyle={{backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '10px', color: '#1e293b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
@@ -736,8 +739,8 @@ const App = () => {
             </div>
 
              {/* --- NEW: Monthly Performance Chart --- */}
-             <div className="bg-zinc-900 p-8 rounded-[3rem] shadow-2xl border border-slate-800 flex-1 flex flex-col min-h-[300px]">
-                <h3 className="font-black text-white flex items-center gap-2 italic text-sm uppercase mb-6"><BarChart2 size={16} className="text-emerald-500" /> Monthly Audit Progress (%)</h3>
+             <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
+                <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><BarChart2 size={16} className="text-emerald-500" /> Monthly Audit Progress (%)</h3>
                 <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={monthlyPerformanceData}>
@@ -747,17 +750,17 @@ const App = () => {
                                     <stop offset="100%" stopColor="#059669" stopOpacity={0.6}/>
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                             <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                             <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} unit="%" />
                             <Tooltip 
-                                cursor={{fill: '#1e293b', opacity: 0.4}}
+                                cursor={{fill: '#f1f5f9', opacity: 0.8}}
                                 content={({ active, payload, label }) => {
                                     if (active && payload && payload.length) {
                                     return (
-                                        <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl shadow-xl">
-                                            <p className="text-slate-300 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
-                                            <p className="text-emerald-400 text-lg font-black">{payload[0].value}%</p>
+                                        <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xl">
+                                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
+                                            <p className="text-emerald-600 text-lg font-black">{payload[0].value}%</p>
                                             <p className="text-slate-500 text-[10px] font-bold">Audited: {payload[0].payload.audited} / {payload[0].payload.total}</p>
                                         </div>
                                     );
@@ -776,32 +779,32 @@ const App = () => {
             </div>
         </div>
 
-        <div className="bg-zinc-900 rounded-[3rem] shadow-2xl border border-slate-800 overflow-hidden">
-            <div className="p-8 border-b border-slate-800 bg-zinc-900/50 flex items-center justify-between">
-                <div><h3 className="font-black text-white flex items-center gap-2 italic text-lg uppercase tracking-tight"><Users size={20} className="text-indigo-500" /> สรุปพนักงาน (ID : ชื่อ) x ผลการตรวจ</h3></div>
+        <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div><h3 className="font-black text-slate-800 flex items-center gap-2 italic text-lg uppercase tracking-tight"><Users size={20} className="text-indigo-500" /> สรุปพนักงาน (ID : ชื่อ) x ผลการตรวจ</h3></div>
             </div>
             <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                 <table className="w-full text-left text-sm border-separate border-spacing-0 min-w-[1200px]">
-                    <thead className="sticky top-0 bg-zinc-900 z-20 font-black text-slate-200 text-[10px] uppercase tracking-widest border-b border-slate-800 shadow-md">
+                    <thead className="sticky top-0 bg-white z-20 font-black text-slate-700 text-[10px] uppercase tracking-widest border-b border-slate-200 shadow-sm">
                         <tr>
-                            <th rowSpan="2" className="px-8 py-6 border-b border-slate-800 border-r border-slate-800 bg-zinc-900 w-64 text-slate-100 italic">Interviewer (ID : Name)</th>
-                            <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-slate-800 bg-zinc-900/40 text-indigo-400 text-[11px] font-black italic uppercase">QC Result Distribution</th>
-                            <th rowSpan="2" className="px-8 py-6 text-center bg-slate-800 text-white border-b border-slate-800 border-l border-slate-800">Total</th>
+                            <th rowSpan="2" className="px-8 py-6 border-b border-slate-200 border-r border-slate-100 bg-white w-64 text-slate-700 italic">Interviewer (ID : Name)</th>
+                            <th colSpan={RESULT_ORDER.length} className="px-4 py-4 text-center border-b border-slate-200 bg-slate-50 text-indigo-500 text-[11px] font-black italic uppercase">QC Result Distribution</th>
+                            <th rowSpan="2" className="px-8 py-6 text-center bg-slate-100 text-slate-700 border-b border-slate-200 border-l border-slate-200">Total</th>
                         </tr>
-                        <tr className="bg-zinc-900/80 text-white">
-                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-slate-800 border-r border-slate-800 max-w-[180px] text-slate-400"><span className="line-clamp-2" title={type}>{formatResultDisplay(type)}</span></th>)}
+                        <tr className="bg-slate-50 text-slate-600">
+                            {RESULT_ORDER.map(type => <th key={type} className="px-4 py-3 text-center border-b border-slate-200 border-r border-slate-200 max-w-[180px] text-slate-500"><span className="line-clamp-2" title={type}>{formatResultDisplay(type)}</span></th>)}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800 font-bold">
+                    <tbody className="divide-y divide-slate-100 font-bold">
                         {agentSummary.map((agent, i) => (
-                        <tr key={i} className="hover:bg-indigo-950/20 transition-colors group">
-                            <td className="px-8 py-5 text-white border-r border-slate-800 font-medium">{agent.name}</td>
+                        <tr key={i} className="hover:bg-indigo-50 transition-colors group">
+                            <td className="px-8 py-5 text-slate-700 border-r border-slate-100 font-medium">{agent.name}</td>
                             {RESULT_ORDER.map(type => {
                             const val = agent[type]; const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
                             const percent = agent.total > 0 ? ((val / agent.total) * 100).toFixed(1) : 0;
                             return (
-                                <td key={type} className={`px-4 py-5 text-center border-r border-slate-800 transition-all ${val > 0 ? 'cursor-pointer hover:bg-slate-700/50 shadow-inner' : ''} ${isActive ? 'bg-indigo-600/20 ring-2 ring-inset ring-indigo-500' : ''}`} onClick={() => val > 0 && handleMatrixClick(agent.name, type)}>
-                                    <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-800'}`} style={{ color: val > 0 ? getResultColor(type) : undefined }}>
+                                <td key={type} className={`px-4 py-5 text-center border-r border-slate-100 transition-all ${val > 0 ? 'cursor-pointer hover:bg-white shadow-sm' : ''} ${isActive ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-200' : ''}`} onClick={() => val > 0 && handleMatrixClick(agent.name, type)}>
+                                    <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-300'}`} style={{ color: val > 0 ? getResultColor(type) : undefined }}>
                                         {val > 0 ? (
                                             <div className="flex flex-col items-center">
                                                 <span>{val}</span>
@@ -812,113 +815,113 @@ const App = () => {
                                 </td>
                             );
                             })}
-                            <td className="px-8 py-5 text-center bg-slate-800/20 text-white border-l border-slate-800">{agent.total}</td>
+                            <td className="px-8 py-5 text-center bg-slate-50 text-slate-700 border-l border-slate-200">{agent.total}</td>
                         </tr>
                         ))}
-                        {/* --- NEW: GRAND TOTAL ROW --- */}
-                        <tr className="bg-slate-800 text-white font-black border-t-2 border-slate-700 sticky bottom-0 z-20 shadow-lg">
-                            <td className="px-8 py-5 border-r border-slate-700 text-indigo-300 italic uppercase">GRAND TOTAL</td>
+                        {/* --- NEW: GRAND TOTAL ROW (Light Theme) --- */}
+                        <tr className="bg-slate-100 text-slate-800 font-black border-t-2 border-slate-300 sticky bottom-0 z-20 shadow-lg">
+                            <td className="px-8 py-5 border-r border-slate-300 text-indigo-600 italic uppercase">GRAND TOTAL</td>
                             {RESULT_ORDER.map(type => {
                                 const val = totalSummary[type];
                                 const percent = totalSummary.total > 0 ? ((val / totalSummary.total) * 100).toFixed(1) : 0;
                                 return (
-                                    <td key={type} className="px-4 py-5 text-center border-r border-slate-700">
+                                    <td key={type} className="px-4 py-5 text-center border-r border-slate-300">
                                         <div className="flex flex-col items-center">
                                             <span>{val}</span>
-                                            <span className="text-[9px] text-indigo-300/80">({percent}%)</span>
+                                            <span className="text-[9px] text-slate-500">({percent}%)</span>
                                         </div>
                                     </td>
                                 );
                             })}
-                            <td className="px-8 py-5 text-center border-l border-slate-700 text-indigo-400 bg-slate-900/50">{totalSummary.total}</td>
+                            <td className="px-8 py-5 text-center border-l border-slate-300 text-indigo-600 bg-slate-200">{totalSummary.total}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <div id="detail-section" className="bg-zinc-900 rounded-[3rem] shadow-2xl border border-slate-800 overflow-hidden scroll-mt-6">
-            <div className="p-8 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div id="detail-section" className="bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden scroll-mt-6">
+            <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
-                    <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-2 italic"><MessageSquare size={16} className="text-indigo-500" /> รายละเอียดรายเคส</h3>
+                    <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs flex items-center gap-2 italic"><MessageSquare size={16} className="text-indigo-500" /> รายละเอียดรายเคส</h3>
                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {activeCell.agent && <span className="px-3 py-1 bg-indigo-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">กำลังแสดง: {activeCell.agent} <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="hover:text-slate-300"><X size={10}/></button></span>}
-                        {activeKpiFilter && <span className="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">Filter: {activeKpiFilter} <button onClick={() => setActiveKpiFilter(null)} className="hover:text-slate-300"><X size={10}/></button></span>}
+                        {activeCell.agent && <span className="px-3 py-1 bg-indigo-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">กำลังแสดง: {activeCell.agent} <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="hover:text-slate-200"><X size={10}/></button></span>}
+                        {activeKpiFilter && <span className="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">Filter: {activeKpiFilter} <button onClick={() => setActiveKpiFilter(null)} className="hover:text-slate-200"><X size={10}/></button></span>}
                     </div>
                 </div>
-                <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-slate-800/30 border border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-600 outline-none text-white shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
+                <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-600 outline-none text-slate-800 shadow-inner placeholder:text-slate-400" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
             </div>
             <div className="overflow-auto max-h-[1000px] custom-scrollbar">
                 <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
-                <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-slate-800 font-black text-slate-300 uppercase tracking-widest">
-                    <tr><th className="px-8 py-5 border-r border-slate-800/50">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-800/50">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-800/50">ผลสรุป</th><th className="px-8 py-5">QC Full Comment (Column N) & Audio</th></tr>
+                <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200 font-black text-slate-500 uppercase tracking-widest">
+                    <tr><th className="px-8 py-5 border-r border-slate-100">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-100">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-100">ผลสรุป</th><th className="px-8 py-5">QC Full Comment (Column N) & Audio</th></tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-100">
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
                         const isExpanded = expandedCaseId === item.id; const isEditing = editingCase && editingCase.id === item.id;
                         const isNewAudit = item.type === "ยังไม่ได้ตรวจ";
 
                         return (
                         <React.Fragment key={item.id}>
-                            <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-950/20 shadow-inner' : 'hover:bg-slate-800/40'}`}>
-                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-300">{item.questionnaireNo}</span></div></td>
-                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white text-sm group-hover:text-indigo-400 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-700" />}</div><div className="text-[9px] text-slate-500 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisorFilter}</div></td>
-                                <td className="px-4 py-6 text-center border-r border-slate-800/20"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
+                            <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-50 shadow-inner' : 'hover:bg-slate-50'}`}>
+                                <td className="px-8 py-6 border-r border-slate-100"><div className="font-black text-slate-800">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-500">{item.questionnaireNo}</span></div></td>
+                                <td className="px-8 py-6 border-r border-slate-100"><div className="font-black text-slate-700 text-sm group-hover:text-indigo-600 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}</div><div className="text-[9px] text-slate-400 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisorFilter}</div></td>
+                                <td className="px-4 py-6 text-center border-r border-slate-100"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
                                 <td className="px-8 py-6">
-                                    <p className="text-slate-400 italic max-w-sm truncate group-hover:text-slate-200 transition-colors font-sans leading-relaxed">{item.comment ? `"${item.comment}"` : '-'}</p>
-                                    {item.audio && item.audio.includes('http') && (<a href={item.audio} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-2 inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-black text-[9px] uppercase transition-all hover:translate-x-1"><PlayCircle size={14} /> Listen Recording</a>)}
+                                    <p className="text-slate-500 italic max-w-sm truncate group-hover:text-slate-700 transition-colors font-sans leading-relaxed">{item.comment ? `"${item.comment}"` : '-'}</p>
+                                    {item.audio && item.audio.includes('http') && (<a href={item.audio} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-2 inline-flex items-center gap-1 text-indigo-500 hover:text-indigo-600 font-black text-[9px] uppercase transition-all hover:translate-x-1"><PlayCircle size={14} /> Listen Recording</a>)}
                                 </td>
                             </tr>
                             {isExpanded && (
-                            <tr className="bg-slate-900/40 animate-in slide-in-from-top-2 duration-300">
-                                <td colSpan={4} className="p-8 border-b border-slate-800 text-white">
+                            <tr className="bg-slate-50 animate-in slide-in-from-top-2 duration-300">
+                                <td colSpan={4} className="p-8 border-b border-slate-200 text-slate-800">
                                 <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.interviewerId} : {item.rawName})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
+                                    <div className="flex items-center gap-4"><div className="p-3 bg-white border border-slate-200 rounded-2xl text-indigo-600 shadow-sm"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-slate-700">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.interviewerId} : {item.rawName})</h4><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
                                     {userRole === 'Admin' ? (
                                         !isEditing ? (
-                                            <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
-                                                <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-400"}/> 
+                                            <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-lg shadow-indigo-900/20' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                                <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-500"}/> 
                                                 {isNewAudit ? "เริ่มตรวจงานนี้" : "แก้ไขข้อมูล"}
                                             </button>
                                         ) : (
-                                            <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
+                                            <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-white text-slate-600 rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-200 hover:bg-slate-50">ยกเลิก</button></div>
                                         )
                                     ) : (
-                                        <div className="px-4 py-2 border border-slate-700 rounded-xl text-slate-500 text-[10px] font-black uppercase tracking-widest italic opacity-50 select-none">Read Only View</div>
+                                        <div className="px-4 py-2 border border-slate-200 rounded-xl text-slate-400 text-[10px] font-black uppercase tracking-widest italic opacity-50 select-none">Read Only View</div>
                                     )}
                                     </div>
                                 </div>
 
                                 {isEditing && (
-                                    <div className="mb-8 p-6 bg-indigo-950/20 border border-indigo-500/20 rounded-[2rem] shadow-inner">
-                                        <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC) & Supervisor (H)</div>
+                                    <div className="mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-[2rem] shadow-inner">
+                                        <div className="flex items-center gap-2 mb-4 text-indigo-600 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC) & Supervisor (H)</div>
                                         <div className="flex flex-col md:flex-row gap-4">
                                             {/* AC/BC Selection */}
                                             <div className="flex gap-2">
                                                 {['AC', 'BC'].map(t => (
-                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/40' : 'bg-zinc-950 text-slate-500 border-slate-800 hover:border-slate-700'}`}>
+                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-900/20' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
                                                         {t} MODE
                                                     </button>
                                                 ))}
                                             </div>
 
                                             {/* NEW: CATI Supervisor Input (Column H) - Dropdown */}
-                                            <div className="flex-1 bg-zinc-950 border border-slate-800 rounded-xl p-2 flex items-center gap-3 pl-4">
-                                                <UserPlus size={16} className="text-indigo-400"/>
+                                            <div className="flex-1 bg-white border border-slate-200 rounded-xl p-2 flex items-center gap-3 pl-4">
+                                                <UserPlus size={16} className="text-indigo-500"/>
                                                 <div className="flex-1 relative">
-                                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">CATI Supervisor (Column H)</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">CATI Supervisor (Column H)</p>
                                                     <select 
                                                         value={editingCase.supervisor || ''} 
                                                         onChange={e=>setEditingCase({...editingCase, supervisor: e.target.value})} 
-                                                        className="w-full bg-transparent text-white text-xs font-bold outline-none appearance-none"
+                                                        className="w-full bg-transparent text-slate-800 text-xs font-bold outline-none appearance-none"
                                                     >
-                                                        <option value="" className="bg-zinc-900 text-slate-500">ระบุชื่อ Supervisor...</option>
+                                                        <option value="" className="text-slate-400">ระบุชื่อ Supervisor...</option>
                                                         {SUPERVISOR_OPTIONS.map(opt => (
-                                                            <option key={opt} value={opt} className="bg-zinc-900 text-white">{opt}</option>
+                                                            <option key={opt} value={opt} className="text-slate-800">{opt}</option>
                                                         ))}
                                                     </select>
-                                                    <ChevronDown size={12} className="absolute right-0 top-1/2 translate-y-0 text-slate-600 pointer-events-none" />
+                                                    <ChevronDown size={12} className="absolute right-0 top-1/2 translate-y-0 text-slate-400 pointer-events-none" />
                                                 </div>
                                             </div>
 
@@ -928,22 +931,22 @@ const App = () => {
                                 )}
 
                                 {item.audio && item.audio.includes('http') && (
-                                    <div className="mb-8 p-6 bg-slate-950/50 border border-slate-800 rounded-[2rem] flex items-center justify-between shadow-inner">
+                                    <div className="mb-8 p-6 bg-white border border-slate-200 rounded-[2rem] flex items-center justify-between shadow-sm">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-indigo-600 text-white rounded-2xl animate-pulse"><PlayCircle size={20} /></div>
-                                            <div><p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Audio Recording File</p><p className="text-xs font-black text-slate-200">ไฟล์เสียงบันทึกการสัมภาษณ์</p></div>
+                                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl animate-pulse"><PlayCircle size={20} /></div>
+                                            <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Audio Recording File</p><p className="text-xs font-black text-slate-700">ไฟล์เสียงบันทึกการสัมภาษณ์</p></div>
                                         </div>
                                         <a href={item.audio} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all shadow-lg shadow-indigo-900/20"><ExternalLink size={14} /> OPEN PLAYER</a>
                                     </div>
                                 )}
-                                <div className="mb-8 p-6 bg-slate-900/80 border border-slate-800 rounded-[2rem] shadow-inner">
-                                    <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Star size={16} /> สรุปผลการสัมภาษณ์แบบละเอียด (Column M)</div>
-                                    {isEditing ? (<div className="relative"><select className="w-full p-4 bg-slate-950 border border-indigo-600/30 rounded-2xl text-[11px] font-black text-white focus:ring-2 focus:ring-indigo-600 outline-none appearance-none shadow-lg shadow-indigo-900/10" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-slate-200 bg-slate-950/50 p-4 rounded-xl border border-slate-800 leading-relaxed shadow-sm">{item.result}</p>)}
+                                <div className="mb-8 p-6 bg-slate-100 border border-slate-200 rounded-[2rem] shadow-inner">
+                                    <div className="flex items-center gap-2 mb-4 text-indigo-500 font-black text-[10px] uppercase italic tracking-widest"><Star size={16} /> สรุปผลการสัมภาษณ์แบบละเอียด (Column M)</div>
+                                    {isEditing ? (<div className="relative"><select className="w-full p-4 bg-white border border-indigo-200 rounded-2xl text-[11px] font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none appearance-none shadow-sm" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-slate-600 bg-white p-4 rounded-xl border border-slate-200 leading-relaxed shadow-sm">{item.result}</p>)}
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                                     {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
-                                    <div key={eIdx} className={`bg-slate-900 border p-3 rounded-2xl transition-all ${isEditing ? 'border-slate-800 opacity-60 cursor-not-allowed' : 'border-slate-800'}`}>
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
+                                    <div key={eIdx} className={`bg-white border p-3 rounded-2xl transition-all ${isEditing ? 'border-slate-200 opacity-60 cursor-not-allowed' : 'border-slate-200 shadow-sm'}`}>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
                                         <div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>
                                             {SCORE_LABELS[evalItem.value] || evalItem.value}
                                         </div>
@@ -951,15 +954,15 @@ const App = () => {
                                     ))}
                                 </div>
                                 <div className="mt-8">
-                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column N)</p>
-                                    {isEditing ? (<textarea className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-sm italic text-white outline-none min-h-[120px] focus:ring-2 focus:ring-indigo-600 shadow-inner font-sans" value={editingCase.comment} onChange={e => setEditingCase({...editingCase, comment: e.target.value})}/>) : (<div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 shadow-sm"><p className="text-sm text-slate-200 font-medium italic leading-relaxed font-sans">"{item.comment || 'ไม่มีคอมเมนต์'}"</p></div>)}
+                                    <p className="text-[10px] font-black text-indigo-500 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column N)</p>
+                                    {isEditing ? (<textarea className="w-full bg-white border border-slate-200 rounded-[1.5rem] p-6 text-sm italic text-slate-700 outline-none min-h-[120px] focus:ring-2 focus:ring-indigo-600 shadow-inner font-sans" value={editingCase.comment} onChange={e => setEditingCase({...editingCase, comment: e.target.value})}/>) : (<div className="p-4 bg-white rounded-2xl border border-slate-200 border-l-4 border-l-indigo-500 shadow-sm"><p className="text-sm text-slate-600 font-medium italic leading-relaxed font-sans">"{item.comment || 'ไม่มีคอมเมนต์'}"</p></div>)}
                                 </div>
                                 </td>
                             </tr>
                             )}
                         </React.Fragment>
                         );
-                    }) : (<tr><td colSpan={4} className="px-8 py-24 text-center text-slate-500 font-black uppercase italic tracking-widest text-lg opacity-20 italic">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>)}
+                    }) : (<tr><td colSpan={4} className="px-8 py-24 text-center text-slate-400 font-black uppercase italic tracking-widest text-lg opacity-40 italic">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>)}
                 </tbody>
                 </table>
             </div>
@@ -967,17 +970,17 @@ const App = () => {
       </div>
 
       {(showSync || error) && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4">
-            <div className="bg-zinc-900 w-full max-w-2xl rounded-[3rem] p-10 border border-slate-800 shadow-2xl relative animate-in zoom-in duration-300">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 border border-slate-200 shadow-2xl relative animate-in zoom-in duration-300">
                 <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
-                <div className="flex items-center justify-between mb-10"><h3 className="text-xl font-black flex items-center gap-3 text-white uppercase italic tracking-tight">{error ? 'Connection Error' : 'ตั้งค่าระบบ'}</h3>{data.length > 0 && <button onClick={() => {setShowSync(false); setError(null);}} className="text-slate-500 hover:text-white transition-colors"><X size={28} /></button>}</div>
+                <div className="flex items-center justify-between mb-10"><h3 className="text-xl font-black flex items-center gap-3 text-slate-800 uppercase italic tracking-tight">{error ? 'Connection Error' : 'ตั้งค่าระบบ'}</h3>{data.length > 0 && <button onClick={() => {setShowSync(false); setError(null);}} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={28} /></button>}</div>
                 <div className="space-y-6">
-                    <div className="p-4 bg-indigo-900/30 border border-indigo-500/30 rounded-2xl mb-4">
-                      <p className="text-xs text-indigo-300 font-bold mb-1 flex items-center gap-2"><Zap size={14}/> SYSTEM UPGRADE (JSON API MODE)</p>
-                      <p className="text-[10px] text-slate-400">ระบบได้รับการอัปเกรดเป็นโหมดประสิทธิภาพสูง กรุณาใส่ Web App URL ของ Apps Script ลงในช่องด้านล่างเพียงช่องเดียว</p>
+                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-4">
+                      <p className="text-xs text-indigo-600 font-bold mb-1 flex items-center gap-2"><Zap size={14}/> SYSTEM UPGRADE (JSON API MODE)</p>
+                      <p className="text-[10px] text-slate-500">ระบบได้รับการอัปเกรดเป็นโหมดประสิทธิภาพสูง กรุณาใส่ Web App URL ของ Apps Script ลงในช่องด้านล่างเพียงช่องเดียว</p>
                     </div>
-                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-300 uppercase tracking-widest pl-2 italic">Apps Script Web App URL (Read & Write)</label><input type="text" className="w-full px-6 py-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
-                    <div className="flex gap-4 pt-4"><button onClick={() => fetchFromAppsScript(appsScriptUrl)} disabled={loading || !appsScriptUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-900/30 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT & SYNC</button></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 italic">Apps Script Web App URL (Read & Write)</label><input type="text" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
+                    <div className="flex gap-4 pt-4"><button onClick={() => fetchFromAppsScript(appsScriptUrl)} disabled={loading || !appsScriptUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-200 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT & SYNC</button></div>
                     {error && <p className="text-center text-[10px] text-rose-500 font-black mt-2 uppercase italic animate-pulse">{error}</p>}
                 </div>
             </div>
