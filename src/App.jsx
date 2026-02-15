@@ -7,24 +7,12 @@ import {
   FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
- * - THEME: LIGHT MODE UI/UX UPDATE
- * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
- * - FIX: บังคับอ่าน Interviewer ID (Column J/Index 9) และ Name (Column K/Index 10)
- * - FIX: บังคับอ่าน Result (Column M/Index 12)
- * - FIX: แก้ไข Logic การจับคู่ Result (ใช้ startsWith แทน includes) เพื่อแก้ปัญหา "ไม่ผ่านเกณฑ์" กลายเป็น "ผ่านเกณฑ์"
- * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
- * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
- * - FIX: เพิ่มระบบ Recent Edits Buffer ป้องกันข้อมูลเด้งกลับ (Revert) เมื่อ Sheet อัปเดตไม่ทัน
- * - UPDATE V1.1: เพิ่ม % ในตาราง QC Result Distribution
- * - UPDATE V1.2: KPI Cards Clickable -> Filter Case Details
- * - UPDATE V1.3: แก้ไขการอ่าน QC Comment จาก Column AC (28) เป็น Column N (13)
- * - UPDATE V1.4: เพิ่ม User INV (Read-only) และปิด Settings สำหรับ INV
- * - UPDATE V1.6: แก้ไข Mapping -> CATI Supervisor = H (7), QC Comment = N (13)
- * - UPDATE V1.7: เปลี่ยน Input Supervisor เป็น Dropdown List (เสกข์พลกฤต, ศรัณยกร, นิตยา, มณีรัตน์, Gullup)
- * - UPDATE V1.8: เพิ่มแถว GRAND TOTAL ในตาราง QC Result พร้อมคำนวณ % แนวตั้ง
- * - UPDATE V1.9: Redesign to Light Theme (White/Slate Tone)
- * - FIX V2.0: ตรวจสอบและยืนยันการส่งค่า CATI Supervisor (H) ใน handleUpdateCase
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.1 LIGHT THEME + QC USER)
+ * - THEME: LIGHT MODE (Clean White/Slate)
+ * - FEATURE: Grand Total Row included
+ * - FIX: Supervisor Dropdown & Logic (Force String to prevent empty values)
+ * - UPDATE V2.1: เพิ่ม User 'QC' (Edit Data = YES, Settings = NO)
+ * - CORE: JSON API Connection, Real-time Sync, Buffer Edit System
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
@@ -75,7 +63,7 @@ const IntageLogo = ({ className = "h-8" }) => (
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null); // 'Admin' or 'INV'
+  const [userRole, setUserRole] = useState(null); // 'Admin', 'QC', or 'INV'
   const [inputUser, setInputUser] = useState('');
   const [inputPass, setInputPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -539,6 +527,9 @@ const App = () => {
               if(inputUser==='Admin'&&inputPass==='1234') {
                   setIsAuthenticated(true); 
                   setUserRole('Admin');
+              } else if(inputUser==='QC'&&inputPass==='1234') {
+                  setIsAuthenticated(true); 
+                  setUserRole('QC');
               } else if(inputUser==='INV'&&inputPass==='1234') {
                   setIsAuthenticated(true); 
                   setUserRole('INV');
@@ -879,7 +870,7 @@ const App = () => {
                                 <div className="flex items-center justify-between mb-8">
                                     <div className="flex items-center gap-4"><div className="p-3 bg-white border border-slate-200 rounded-2xl text-indigo-600 shadow-sm"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-slate-700">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.interviewerId} : {item.rawName})</h4><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
-                                    {userRole === 'Admin' ? (
+                                    {userRole === 'Admin' || userRole === 'QC' ? (
                                         !isEditing ? (
                                             <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-lg shadow-indigo-900/20' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'}`}>
                                                 <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-500"}/> 
@@ -901,7 +892,7 @@ const App = () => {
                                             {/* AC/BC Selection */}
                                             <div className="flex gap-2">
                                                 {['AC', 'BC'].map(t => (
-                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-900/20' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-900/40' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
                                                         {t} MODE
                                                     </button>
                                                 ))}
