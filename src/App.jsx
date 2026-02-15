@@ -10,13 +10,14 @@ import {
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
  * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
  * - FIX: บังคับอ่าน Interviewer ID (Column J/Index 9) และ Name (Column K/Index 10)
- * - FIX: บังคับอ่าน Result (Column M/Index 12) และ Comment (Column AC/Index 28)
+ * - FIX: บังคับอ่าน Result (Column M/Index 12) และ Comment (Column N/Index 13)
  * - FIX: แก้ไข Logic การจับคู่ Result (ใช้ startsWith แทน includes) เพื่อแก้ปัญหา "ไม่ผ่านเกณฑ์" กลายเป็น "ผ่านเกณฑ์"
  * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
  * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
  * - FIX: เพิ่มระบบ Recent Edits Buffer ป้องกันข้อมูลเด้งกลับ (Revert) เมื่อ Sheet อัปเดตไม่ทัน
  * - UPDATE V1.1: เพิ่ม % ในตาราง QC Result Distribution
  * - UPDATE V1.2: KPI Cards Clickable -> Filter Case Details
+ * - UPDATE V1.3: แก้ไขการอ่าน QC Comment จาก Column AC (28) เป็น Column N (13)
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -206,7 +207,7 @@ const App = () => {
       const COL_INTERVIEWER_ID = 9;  // Column J
       const COL_INTERVIEWER_NAME = 10; // Column K
       const COL_RESULT = 12; // Column M
-      const COL_COMMENT = 28; // Column AC
+      const COL_COMMENT = 13; // Column N (Index 13)
       const EVAL_START_INDEX = 15; // Column P
       const EVAL_COUNT = 13; // P to AB
 
