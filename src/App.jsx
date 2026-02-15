@@ -4,14 +4,16 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus, MapPin
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.1 LIGHT THEME + QC USER)
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.3 LIGHT THEME + QC USER + TOUCHPOINT)
  * - THEME: LIGHT MODE (Clean White/Slate)
- * - FEATURE: Grand Total Row included
- * - FIX: Supervisor Dropdown & Logic (Force String to prevent empty values)
- * - UPDATE V2.1: เพิ่ม User 'QC' (Edit Data = YES, Settings = NO)
+ * - FEATURE: Grand Total Row included with Vertical %
+ * - FEATURE: Row Total Column includes % share
+ * - FEATURE: Added TOUCH_POINT (Column F) Display & Filter
+ * - FIX: Supervisor Dropdown & Logic
+ * - USER ROLE: Admin (Full), QC (Edit Only), INV (View Only)
  * - CORE: JSON API Connection, Real-time Sync, Buffer Edit System
  */
 
@@ -86,7 +88,10 @@ const App = () => {
   const [selectedSups, setSelectedSups] = useState([]);
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
-  const [selectedTypes, setSelectedTypes] = useState([]); 
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  
+  // NEW V2.3: Touchpoint Filter State
+  const [selectedTouchpoints, setSelectedTouchpoints] = useState([]);
   
   // NEW: State for KPI Card Quick Filter
   const [activeKpiFilter, setActiveKpiFilter] = useState(null); // 'audited', 'pass', 'improve', 'error'
@@ -195,7 +200,7 @@ const App = () => {
       const idx = {
         month: getIdx(["เดือน", "month"]), 
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
-        touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), 
+        // touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), // REMOVED: Use Force Column F
         type: getIdx(["AC / BC", "type", "ac/bc"]), 
         sup: getIdx(["Supervisor", "sup"]), // This is mostly for filtering logic
         questionnaireNo: getIdx(["questionnaire", "no.", "เลขชุด", "id"]), 
@@ -203,6 +208,7 @@ const App = () => {
       };
 
       // FIX: Force Columns (Hardcoded to match user sheet structure)
+      const COL_TOUCHPOINT = 5; // Column F (Index 5)
       const COL_INTERVIEWER_ID = 9;  // Column J (Index 9)
       const COL_INTERVIEWER_NAME = 10; // Column K (Index 10)
       const COL_RESULT = 12; // Column M (Index 12)
@@ -251,6 +257,9 @@ const App = () => {
           // FIX: Read QC Comment from Column N (Index 13)
           const commentVal = (row[COL_QC_COMMENT]) ? row[COL_QC_COMMENT].toString() : '';
 
+          // NEW V2.3: Read Touchpoint from Column F (Index 5)
+          const touchpointVal = (row[COL_TOUCHPOINT]) ? row[COL_TOUCHPOINT].toString() : 'N/A';
+
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
@@ -279,7 +288,7 @@ const App = () => {
             supervisor: supervisorVal, // Use Forced Column H
             comment: commentVal, // Use Forced Column N
             audio: (idx.audio !== -1 && row[idx.audio]) ? row[idx.audio] : '', 
-            touchpoint: (idx.touchpoint !== -1 && row[idx.touchpoint]) ? row[idx.touchpoint] : 'N/A', 
+            touchpoint: touchpointVal, // Use Forced Column F
             // Note: 'supervisor' key above is Column H. 'supervisorFilter' below is for sidebar filter logic from headers
             supervisorFilter: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
             type: cleanType,
@@ -388,13 +397,20 @@ const App = () => {
   const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisorFilter).filter(s => s !== 'N/A'))].sort(), [data]);
   const availableTypes = useMemo(() => [...new Set(data.map(d => d.type).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
   
+  // NEW V2.3: Available Touchpoints
+  const availableTouchpoints = useMemo(() => [...new Set(data.map(d => d.touchpoint).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
+
   const availableAgents = useMemo(() => {
     let filtered = data;
     if (selectedSups.length > 0) filtered = filtered.filter(d => selectedSups.includes(d.supervisorFilter));
     if (selectedMonths.length > 0) filtered = filtered.filter(d => selectedMonths.includes(d.month));
     if (selectedTypes.length > 0) filtered = filtered.filter(d => selectedTypes.includes(d.type));
+    
+    // NEW V2.3: Filter Agents by Touchpoint
+    if (selectedTouchpoints.length > 0) filtered = filtered.filter(d => selectedTouchpoints.includes(d.touchpoint));
+
     return [...new Set(filtered.map(d => d.agent).filter(a => a !== 'Unknown'))].sort();
-  }, [data, selectedSups, selectedMonths, selectedTypes]);
+  }, [data, selectedSups, selectedMonths, selectedTypes, selectedTouchpoints]);
 
   // BASE Filtered Data (Sidebar + Search Only) - Used for KPI Cards numbers
   const baseFilteredData = useMemo(() => {
@@ -405,9 +421,13 @@ const App = () => {
       const matchesAgent = selectedAgents.length === 0 || selectedAgents.includes(item.agent);
       const matchesMonth = selectedMonths.length === 0 || selectedMonths.includes(item.month);
       const matchesType = selectedTypes.length === 0 || selectedTypes.includes(item.type);
-      return matchesSearch && matchesResult && matchesSup && matchesAgent && matchesMonth && matchesType;
+      
+      // NEW V2.3: Filter by Touchpoint
+      const matchesTouchpoint = selectedTouchpoints.length === 0 || selectedTouchpoints.includes(item.touchpoint);
+
+      return matchesSearch && matchesResult && matchesSup && matchesAgent && matchesMonth && matchesType && matchesTouchpoint;
     });
-  }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths, selectedTypes]);
+  }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths, selectedTypes, selectedTouchpoints]);
 
   // FINAL Filtered Data (Base + KPI Click) - Used for Charts and List
   const finalFilteredData = useMemo(() => {
@@ -604,8 +624,11 @@ const App = () => {
              <button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
           <div className="space-y-8">
-             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
+             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setSelectedTouchpoints([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
              <FilterSection title="เดือน" items={availableMonths} selectedItems={selectedMonths} onToggle={(item) => handleToggleFilter(item, selectedMonths, setSelectedMonths)} onSelectAll={() => setSelectedMonths(availableMonths)} onClear={() => setSelectedMonths([])} />
+             {/* NEW V2.3: Add Touchpoint Filter Section */}
+             <FilterSection title="Touchpoint (จุดสัมผัส)" items={availableTouchpoints} selectedItems={selectedTouchpoints} onToggle={(item) => handleToggleFilter(item, selectedTouchpoints, setSelectedTouchpoints)} onSelectAll={() => setSelectedTouchpoints(availableTouchpoints)} onClear={() => setSelectedTouchpoints([])} />
+             
              <FilterSection title="Supervisor" items={availableSups} selectedItems={selectedSups} onToggle={(item) => handleToggleFilter(item, selectedSups, setSelectedSups)} onSelectAll={() => setSelectedSups(availableSups)} onClear={() => setSelectedSups([])} />
              <FilterSection title="ประเภทงาน (AC / BC)" items={availableTypes} selectedItems={selectedTypes} onToggle={(item) => handleToggleFilter(item, selectedTypes, setSelectedTypes)} onSelectAll={() => setSelectedTypes(availableTypes)} onClear={() => setSelectedTypes([])} />
              <FilterSection title="พนักงาน (ID : ชื่อ)" items={availableAgents} selectedItems={selectedAgents} onToggle={(item) => handleToggleFilter(item, selectedAgents, setSelectedAgents)} onSelectAll={() => setSelectedAgents(availableAgents)} onClear={() => setSelectedAgents([])} maxH="max-h-60" />
@@ -632,7 +655,7 @@ const App = () => {
               {loading ? 'SYNC DATA...' : 'SYNC DATA'}
             </button>
 
-            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/20' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}><Filter size={16} /> ตัวกรอง</button>
+            <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 || selectedTouchpoints.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/20' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}><Filter size={16} /> ตัวกรอง</button>
             {userRole === 'Admin' && <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black hover:bg-slate-700 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>}
             <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-50 rounded-2xl hover:text-indigo-500 text-slate-400 transition-colors border border-slate-200"><User size={20} /></button>
           </div>
@@ -807,7 +830,12 @@ const App = () => {
                                 </td>
                             );
                             })}
-                            <td className="px-8 py-5 text-center bg-slate-50 text-slate-700 border-l border-slate-200">{agent.total}</td>
+                            <td className="px-8 py-5 text-center bg-slate-50 text-slate-700 border-l border-slate-200">
+                                <div className="flex flex-col items-center">
+                                    <span className="font-black text-slate-700">{agent.total}</span>
+                                    <span className="text-[9px] text-slate-400 font-bold">({totalSummary.total > 0 ? ((agent.total / totalSummary.total) * 100).toFixed(1) : 0}%)</span>
+                                </div>
+                            </td>
                         </tr>
                         ))}
                         {/* --- NEW: GRAND TOTAL ROW (Light Theme) --- */}
@@ -825,7 +853,12 @@ const App = () => {
                                     </td>
                                 );
                             })}
-                            <td className="px-8 py-5 text-center border-l border-slate-300 text-indigo-600 bg-slate-200">{totalSummary.total}</td>
+                            <td className="px-8 py-5 text-center border-l border-slate-300 text-indigo-600 bg-slate-200">
+                                <div className="flex flex-col items-center">
+                                    <span>{totalSummary.total}</span>
+                                    <span className="text-[9px] opacity-60">(100%)</span>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -846,7 +879,7 @@ const App = () => {
             <div className="overflow-auto max-h-[1000px] custom-scrollbar">
                 <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
                 <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-slate-200 font-black text-slate-500 uppercase tracking-widest">
-                    <tr><th className="px-8 py-5 border-r border-slate-100">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-100">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-100">ผลสรุป</th><th className="px-8 py-5">QC Full Comment (Column N) & Audio</th></tr>
+                    <tr><th className="px-8 py-5 border-r border-slate-100">วันที่ / เลขชุด / TOUCH_POINT</th><th className="px-8 py-5 border-r border-slate-100">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-100">ผลสรุป</th><th className="px-8 py-5">QC Full Comment (Column N) & Audio</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
@@ -856,7 +889,20 @@ const App = () => {
                         return (
                         <React.Fragment key={item.id}>
                             <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-50 shadow-inner' : 'hover:bg-slate-50'}`}>
-                                <td className="px-8 py-6 border-r border-slate-100"><div className="font-black text-slate-800">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-500">{item.questionnaireNo}</span></div></td>
+                                <td className="px-8 py-6 border-r border-slate-100">
+                                    <div className="font-black text-slate-800">{item.date}</div>
+                                    {/* NEW V2.3: Date + Questionnaire + Touchpoint Display */}
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">
+                                            <Hash size={10} className="text-indigo-400" />
+                                            <span className="text-[11px] font-black text-slate-500">{item.questionnaireNo}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 w-fit">
+                                            <MapPin size={10} className="text-indigo-500" />
+                                            <span className="text-[10px] font-black text-indigo-600">{item.touchpoint}</span>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td className="px-8 py-6 border-r border-slate-100"><div className="font-black text-slate-700 text-sm group-hover:text-indigo-600 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}</div><div className="text-[9px] text-slate-400 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisorFilter}</div></td>
                                 <td className="px-4 py-6 text-center border-r border-slate-100"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
                                 <td className="px-8 py-6">
