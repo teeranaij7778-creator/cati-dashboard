@@ -21,6 +21,7 @@ import {
  * - UPDATE V1.4: เพิ่ม User INV (Read-only) และปิด Settings สำหรับ INV
  * - UPDATE V1.6: แก้ไข Mapping -> CATI Supervisor = H (7), QC Comment = N (13)
  * - UPDATE V1.7: เปลี่ยน Input Supervisor เป็น Dropdown List (เสกข์พลกฤต, ศรัณยกร, นิตยา, มณีรัตน์, Gullup)
+ * - UPDATE V1.8: เพิ่มแถว GRAND TOTAL ในตาราง QC Result พร้อมคำนวณ % แนวตั้ง
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
@@ -445,6 +446,20 @@ const App = () => {
     return Object.values(summaryMap).sort((a, b) => b.total - a.total);
   }, [finalFilteredData]);
 
+  // NEW: Calculate Grand Totals for the Footer Row
+  const totalSummary = useMemo(() => {
+    const totals = { total: 0 };
+    RESULT_ORDER.forEach(r => totals[r] = 0);
+    
+    agentSummary.forEach(agent => {
+        totals.total += agent.total;
+        RESULT_ORDER.forEach(r => {
+            totals[r] += (agent[r] || 0);
+        });
+    });
+    return totals;
+  }, [agentSummary]);
+
   const chartData = useMemo(() => {
     const total = finalFilteredData.length;
     return RESULT_ORDER.map(key => ({ 
@@ -800,6 +815,23 @@ const App = () => {
                             <td className="px-8 py-5 text-center bg-slate-800/20 text-white border-l border-slate-800">{agent.total}</td>
                         </tr>
                         ))}
+                        {/* --- NEW: GRAND TOTAL ROW --- */}
+                        <tr className="bg-slate-800 text-white font-black border-t-2 border-slate-700 sticky bottom-0 z-20 shadow-lg">
+                            <td className="px-8 py-5 border-r border-slate-700 text-indigo-300 italic uppercase">GRAND TOTAL</td>
+                            {RESULT_ORDER.map(type => {
+                                const val = totalSummary[type];
+                                const percent = totalSummary.total > 0 ? ((val / totalSummary.total) * 100).toFixed(1) : 0;
+                                return (
+                                    <td key={type} className="px-4 py-5 text-center border-r border-slate-700">
+                                        <div className="flex flex-col items-center">
+                                            <span>{val}</span>
+                                            <span className="text-[9px] text-indigo-300/80">({percent}%)</span>
+                                        </div>
+                                    </td>
+                                );
+                            })}
+                            <td className="px-8 py-5 text-center border-l border-slate-700 text-indigo-400 bg-slate-900/50">{totalSummary.total}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
