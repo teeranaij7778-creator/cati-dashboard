@@ -4,13 +4,13 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
  * - FIX: บังคับอ่านคะแนนจาก Column P (15) ถึง AB (27) จำนวน 13 ข้อ
  * - FIX: บังคับอ่าน Interviewer ID (Column J/Index 9) และ Name (Column K/Index 10)
- * - FIX: บังคับอ่าน Result (Column M/Index 12) และ Comment (Column N/Index 13)
+ * - FIX: บังคับอ่าน Result (Column M/Index 12)
  * - FIX: แก้ไข Logic การจับคู่ Result (ใช้ startsWith แทน includes) เพื่อแก้ปัญหา "ไม่ผ่านเกณฑ์" กลายเป็น "ผ่านเกณฑ์"
  * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
  * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
@@ -19,9 +19,10 @@ import {
  * - UPDATE V1.2: KPI Cards Clickable -> Filter Case Details
  * - UPDATE V1.3: แก้ไขการอ่าน QC Comment จาก Column AC (28) เป็น Column N (13)
  * - UPDATE V1.4: เพิ่ม User INV (Read-only) และปิด Settings สำหรับ INV
+ * - UPDATE V1.6: แก้ไข Mapping -> CATI Supervisor = H (7), QC Comment = N (13)
  */
 
-const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
 
 // ลำดับการแสดงผล (ใช้ในการ Match ค่าจาก Sheet)
 const RESULT_ORDER = [
@@ -200,16 +201,20 @@ const App = () => {
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
         touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), 
         type: getIdx(["AC / BC", "type", "ac/bc"]), 
-        sup: getIdx(["Supervisor", "sup"]), 
+        sup: getIdx(["Supervisor", "sup"]), // This is mostly for filtering logic
         questionnaireNo: getIdx(["questionnaire", "no.", "เลขชุด", "id"]), 
         audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
       };
 
       // FIX: Force Columns (Hardcoded to match user sheet structure)
-      const COL_INTERVIEWER_ID = 9;  // Column J
-      const COL_INTERVIEWER_NAME = 10; // Column K
-      const COL_RESULT = 12; // Column M
-      const COL_COMMENT = 13; // Column N (Index 13)
+      const COL_INTERVIEWER_ID = 9;  // Column J (Index 9)
+      const COL_INTERVIEWER_NAME = 10; // Column K (Index 10)
+      const COL_RESULT = 12; // Column M (Index 12)
+      
+      // *** MAPPING UPDATE V1.6 ***
+      const COL_CATI_SUPERVISOR = 7; // Column H (Index 7)
+      const COL_QC_COMMENT = 13; // Column N (Index 13)
+
       const EVAL_START_INDEX = 15; // Column P
       const EVAL_COUNT = 13; // P to AB
 
@@ -244,8 +249,11 @@ const App = () => {
           // Display format: ID : Name
           const displayAgent = `${interviewerId} : ${agentId}`;
           
-          // FIX: Read Comment from Column AC (Index 28)
-          const commentVal = (row[COL_COMMENT]) ? row[COL_COMMENT].toString() : '';
+          // FIX: Read CATI Supervisor from Column H (Index 7)
+          const supervisorVal = (row[COL_CATI_SUPERVISOR]) ? row[COL_CATI_SUPERVISOR].toString() : '';
+
+          // FIX: Read QC Comment from Column N (Index 13)
+          const commentVal = (row[COL_QC_COMMENT]) ? row[COL_QC_COMMENT].toString() : '';
 
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
@@ -272,10 +280,12 @@ const App = () => {
             interviewerId: interviewerId, // Store Interviewer ID
             questionnaireNo: (idx.questionnaireNo !== -1 && row[idx.questionnaireNo]) ? row[idx.questionnaireNo] : '-', 
             result: cleanResult, 
-            comment: commentVal, // Use Forced Column AC
+            supervisor: supervisorVal, // Use Forced Column H
+            comment: commentVal, // Use Forced Column N
             audio: (idx.audio !== -1 && row[idx.audio]) ? row[idx.audio] : '', 
             touchpoint: (idx.touchpoint !== -1 && row[idx.touchpoint]) ? row[idx.touchpoint] : 'N/A', 
-            supervisor: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
+            // Note: 'supervisor' key above is Column H. 'supervisorFilter' below is for sidebar filter logic from headers
+            supervisorFilter: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
             type: cleanType,
             evaluations: evaluations
           };
@@ -343,8 +353,9 @@ const App = () => {
         rowIndex: editingCase.rowIndex, 
         result: editingCase.result,
         type: editingCase.type,
+        supervisor: editingCase.supervisor, // Send supervisor (Column H)
         evaluations: editingCase.evaluations.map(e => e.value), // Array of values for P-AB
-        comment: editingCase.comment
+        comment: editingCase.comment // Send comment (Column N)
       };
       
       // 2. Send to Backend
@@ -378,12 +389,12 @@ const App = () => {
 
   // --- Analytical Calculations ---
   const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))].sort(), [data]);
-  const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisor).filter(s => s !== 'N/A'))].sort(), [data]);
+  const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisorFilter).filter(s => s !== 'N/A'))].sort(), [data]);
   const availableTypes = useMemo(() => [...new Set(data.map(d => d.type).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
   
   const availableAgents = useMemo(() => {
     let filtered = data;
-    if (selectedSups.length > 0) filtered = filtered.filter(d => selectedSups.includes(d.supervisor));
+    if (selectedSups.length > 0) filtered = filtered.filter(d => selectedSups.includes(d.supervisorFilter));
     if (selectedMonths.length > 0) filtered = filtered.filter(d => selectedMonths.includes(d.month));
     if (selectedTypes.length > 0) filtered = filtered.filter(d => selectedTypes.includes(d.type));
     return [...new Set(filtered.map(d => d.agent).filter(a => a !== 'Unknown'))].sort();
@@ -394,7 +405,7 @@ const App = () => {
     return data.filter(item => {
       const matchesSearch = item.agent.toLowerCase().includes(searchTerm.toLowerCase()) || item.comment.toLowerCase().includes(searchTerm.toLowerCase()) || item.questionnaireNo.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesResult = selectedResults.length === 0 || selectedResults.includes(item.result);
-      const matchesSup = selectedSups.length === 0 || selectedSups.includes(item.supervisor);
+      const matchesSup = selectedSups.length === 0 || selectedSups.includes(item.supervisorFilter);
       const matchesAgent = selectedAgents.length === 0 || selectedAgents.includes(item.agent);
       const matchesMonth = selectedMonths.length === 0 || selectedMonths.includes(item.month);
       const matchesType = selectedTypes.length === 0 || selectedTypes.includes(item.type);
@@ -804,7 +815,7 @@ const App = () => {
             <div className="overflow-auto max-h-[1000px] custom-scrollbar">
                 <table className="w-full text-left text-xs font-medium border-separate border-spacing-0">
                 <thead className="sticky top-0 bg-zinc-900 shadow-md z-10 border-b border-slate-800 font-black text-slate-300 uppercase tracking-widest">
-                    <tr><th className="px-8 py-5 border-r border-slate-800/50">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-800/50">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-800/50">ผลสรุป</th><th className="px-8 py-5">QC Comment & Audio</th></tr>
+                    <tr><th className="px-8 py-5 border-r border-slate-800/50">วันที่ / เลขชุด</th><th className="px-8 py-5 border-r border-slate-800/50">พนักงาน (ID : ชื่อ)</th><th className="px-4 py-5 text-center border-r border-slate-800/50">ผลสรุป</th><th className="px-8 py-5">QC Full Comment (Column N) & Audio</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
                     {detailLogs.length > 0 ? detailLogs.slice(0, 150).map((item) => {
@@ -815,7 +826,7 @@ const App = () => {
                         <React.Fragment key={item.id}>
                             <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-950/20 shadow-inner' : 'hover:bg-slate-800/40'}`}>
                                 <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white">{item.date}</div><div className="flex items-center gap-1.5 mt-1 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-300">{item.questionnaireNo}</span></div></td>
-                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white text-sm group-hover:text-indigo-400 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-700" />}</div><div className="text-[9px] text-slate-500 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisor}</div></td>
+                                <td className="px-8 py-6 border-r border-slate-800/20"><div className="font-black text-white text-sm group-hover:text-indigo-400 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-700" />}</div><div className="text-[9px] text-slate-500 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisorFilter}</div></td>
                                 <td className="px-4 py-6 text-center border-r border-slate-800/20"><span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black border uppercase shadow-sm" style={{ backgroundColor: `${getResultColor(item.result)}10`, color: getResultColor(item.result), borderColor: `${getResultColor(item.result)}30` }}>{formatResultDisplay(item.result)}</span></td>
                                 <td className="px-8 py-6">
                                     <p className="text-slate-400 italic max-w-sm truncate group-hover:text-slate-200 transition-colors font-sans leading-relaxed">{item.comment ? `"${item.comment}"` : '-'}</p>
@@ -845,13 +856,32 @@ const App = () => {
 
                                 {isEditing && (
                                     <div className="mb-8 p-6 bg-indigo-950/20 border border-indigo-500/20 rounded-[2rem] shadow-inner">
-                                        <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC)</div>
-                                        <div className="flex gap-4">
-                                            {['AC', 'BC'].map(t => (
-                                                <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-8 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/40' : 'bg-zinc-950 text-slate-500 border-slate-800 hover:border-slate-700'}`}>
-                                                    {t} MODE
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center gap-2 mb-4 text-indigo-400 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC) & Supervisor (H)</div>
+                                        <div className="flex flex-col md:flex-row gap-4">
+                                            {/* AC/BC Selection */}
+                                            <div className="flex gap-2">
+                                                {['AC', 'BC'].map(t => (
+                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-900/40' : 'bg-zinc-950 text-slate-500 border-slate-800 hover:border-slate-700'}`}>
+                                                        {t} MODE
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* NEW: CATI Supervisor Input (Column H) */}
+                                            <div className="flex-1 bg-zinc-950 border border-slate-800 rounded-xl p-2 flex items-center gap-3 pl-4">
+                                                <UserPlus size={16} className="text-indigo-400"/>
+                                                <div className="flex-1">
+                                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">CATI Supervisor (Column H)</p>
+                                                    <input 
+                                                        type="text" 
+                                                        value={editingCase.supervisor || ''} 
+                                                        onChange={e=>setEditingCase({...editingCase, supervisor: e.target.value})} 
+                                                        className="w-full bg-transparent text-white text-xs font-bold outline-none placeholder:text-slate-700"
+                                                        placeholder="ระบุชื่อ Supervisor..."
+                                                    />
+                                                </div>
+                                            </div>
+
                                             {editingCase.type === "ยังไม่ได้ตรวจ" && <p className="text-rose-500 text-[10px] font-black uppercase self-center animate-pulse">*** กรุณาเลือก AC หรือ BC เพื่อบันทึกงาน</p>}
                                         </div>
                                     </div>
@@ -881,7 +911,7 @@ const App = () => {
                                     ))}
                                 </div>
                                 <div className="mt-8">
-                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column AC)</p>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column N)</p>
                                     {isEditing ? (<textarea className="w-full bg-slate-950 border border-slate-800 rounded-[1.5rem] p-6 text-sm italic text-white outline-none min-h-[120px] focus:ring-2 focus:ring-indigo-600 shadow-inner font-sans" value={editingCase.comment} onChange={e => setEditingCase({...editingCase, comment: e.target.value})}/>) : (<div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-800 border-l-4 border-l-indigo-500 shadow-sm"><p className="text-sm text-slate-200 font-medium italic leading-relaxed font-sans">"{item.comment || 'ไม่มีคอมเมนต์'}"</p></div>)}
                                 </div>
                                 </td>
