@@ -18,6 +18,7 @@ import {
  * - UPDATE V1.1: เพิ่ม % ในตาราง QC Result Distribution
  * - UPDATE V1.2: KPI Cards Clickable -> Filter Case Details
  * - UPDATE V1.3: แก้ไขการอ่าน QC Comment จาก Column AC (28) เป็น Column N (13)
+ * - UPDATE V1.4: เพิ่ม User INV (Read-only) และปิด Settings สำหรับ INV
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -65,6 +66,7 @@ const IntageLogo = ({ className = "h-8" }) => (
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null); // 'Admin' or 'INV'
   const [inputUser, setInputUser] = useState('');
   const [inputPass, setInputPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -498,7 +500,18 @@ const App = () => {
             <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
           </div>
           
-          <form onSubmit={(e) => { e.preventDefault(); if(inputUser==='Admin'&&inputPass==='1234') setIsAuthenticated(true); else setLoginError('Login Failed'); }} className="space-y-4 text-left">
+          <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              if(inputUser==='Admin'&&inputPass==='1234') {
+                  setIsAuthenticated(true); 
+                  setUserRole('Admin');
+              } else if(inputUser==='INV'&&inputPass==='1234') {
+                  setIsAuthenticated(true); 
+                  setUserRole('INV');
+              } else {
+                  setLoginError('Login Failed'); 
+              }
+          }} className="space-y-4 text-left">
             <div className="space-y-1.5">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
                 <div className="relative">
@@ -595,7 +608,7 @@ const App = () => {
             </button>
 
             <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/40' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'}`}><Filter size={16} /> ตัวกรอง</button>
-            <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>
+            {userRole === 'Admin' && <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-black rounded-2xl text-xs font-black hover:bg-slate-200 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>}
             <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-800 rounded-2xl hover:text-indigo-400 text-slate-400 transition-colors border border-slate-700"><User size={20} /></button>
           </div>
         </header>
@@ -815,13 +828,17 @@ const App = () => {
                                 <div className="flex items-center justify-between mb-8">
                                     <div className="flex items-center gap-4"><div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 shadow-inner"><Award /></div><div><h4 className="font-black uppercase italic tracking-widest text-sm text-white">{isNewAudit ? "START AUDIT SESSION" : "ASSESSMENT DETAIL"} (ID: {item.interviewerId} : {item.rawName})</h4><p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest italic leading-relaxed">{isNewAudit ? "กรุณากรอกคะแนนและผลสรุปเพื่อบันทึกงานใหม่" : "แก้ไขคะแนน P:AB และ สรุปผล M"}</p></div></div>
                                     <div className="flex gap-2">
-                                    {!isEditing ? (
-                                        <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
-                                            <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-400"}/> 
-                                            {isNewAudit ? "เริ่มตรวจงานนี้" : "แก้ไขข้อมูล"}
-                                        </button>
+                                    {userRole === 'Admin' ? (
+                                        !isEditing ? (
+                                            <button onClick={() => setEditingCase({...item})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${isNewAudit ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-900/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'}`}>
+                                                <Edit2 size={12} className={isNewAudit ? "text-white" : "text-indigo-400"}/> 
+                                                {isNewAudit ? "เริ่มตรวจงานนี้" : "แก้ไขข้อมูล"}
+                                            </button>
+                                        ) : (
+                                            <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
+                                        )
                                     ) : (
-                                        <div className="flex gap-2"><button disabled={isSaving} onClick={handleUpdateCase} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-indigo-900/20">{isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>} {isNewAudit ? "บันทึกผลการตรวจ" : "บันทึกการแก้ไข"}</button><button onClick={() => setEditingCase(null)} className="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700">ยกเลิก</button></div>
+                                        <div className="px-4 py-2 border border-slate-700 rounded-xl text-slate-500 text-[10px] font-black uppercase tracking-widest italic opacity-50 select-none">Read Only View</div>
                                     )}
                                     </div>
                                 </div>
