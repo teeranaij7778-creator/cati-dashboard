@@ -123,7 +123,7 @@ const App = () => {
       const response = await fetch(fetchUrl);
       
       if (!response.ok) {
-         throw new Error(`Server returned ${response.status} ${response.statusText}`);
+          throw new Error(`Server returned ${response.status} ${response.statusText}`);
       }
 
       // 2. Read as Text first to debug
@@ -674,9 +674,17 @@ const App = () => {
                             <td className="px-8 py-5 text-white border-r border-slate-800 font-medium">{agent.name}</td>
                             {RESULT_ORDER.map(type => {
                             const val = agent[type]; const isActive = activeCell.agent === agent.name && activeCell.resultType === type;
+                            const percent = agent.total > 0 ? ((val / agent.total) * 100).toFixed(1) : 0;
                             return (
                                 <td key={type} className={`px-4 py-5 text-center border-r border-slate-800 transition-all ${val > 0 ? 'cursor-pointer hover:bg-slate-700/50 shadow-inner' : ''} ${isActive ? 'bg-indigo-600/20 ring-2 ring-inset ring-indigo-500' : ''}`} onClick={() => val > 0 && handleMatrixClick(agent.name, type)}>
-                                    <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-800'}`} style={{ color: val > 0 ? getResultColor(type) : undefined }}>{val || '-'}</span>
+                                    <span className={`text-sm font-black ${val > 0 ? '' : 'text-slate-800'}`} style={{ color: val > 0 ? getResultColor(type) : undefined }}>
+                                        {val > 0 ? (
+                                            <div className="flex flex-col items-center">
+                                                <span>{val}</span>
+                                                <span className="text-[9px] opacity-60">({percent}%)</span>
+                                            </div>
+                                        ) : '-'}
+                                    </span>
                                 </td>
                             );
                             })}
