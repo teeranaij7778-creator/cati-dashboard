@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick
 } from 'lucide-react';
 
 /** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (JSON API METHOD)
@@ -15,6 +15,8 @@ import {
  * - FIX: แสดงผลแบบ "ID : Name" ทั้งในตารางและส่วนขยาย
  * - FIX: ปิดการแก้ไขคะแนน (Read-only) แต่ยังแก้ Result/Comment ได้
  * - FIX: เพิ่มระบบ Recent Edits Buffer ป้องกันข้อมูลเด้งกลับ (Revert) เมื่อ Sheet อัปเดตไม่ทัน
+ * - UPDATE V1.1: เพิ่ม % ในตาราง QC Result Distribution
+ * - UPDATE V1.2: KPI Cards Clickable -> Filter Case Details
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyirFpx8gLf8MiSUZyaw_0QvVBCdDk8GXxADmpNeRj2Nm-G9oWeq676aS1evryU8X_9/exec";
@@ -85,6 +87,9 @@ const App = () => {
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
   const [selectedTypes, setSelectedTypes] = useState([]); 
+  
+  // NEW: State for KPI Card Quick Filter
+  const [activeKpiFilter, setActiveKpiFilter] = useState(null); // 'audited', 'pass', 'improve', 'error'
   
   const [showSync, setShowSync] = useState(getStorage('apps_script_url', '') === '' && DEFAULT_APPS_SCRIPT_URL === '');
   
@@ -381,7 +386,8 @@ const App = () => {
     return [...new Set(filtered.map(d => d.agent).filter(a => a !== 'Unknown'))].sort();
   }, [data, selectedSups, selectedMonths, selectedTypes]);
 
-  const filteredData = useMemo(() => {
+  // BASE Filtered Data (Sidebar + Search Only) - Used for KPI Cards numbers
+  const baseFilteredData = useMemo(() => {
     return data.filter(item => {
       const matchesSearch = item.agent.toLowerCase().includes(searchTerm.toLowerCase()) || item.comment.toLowerCase().includes(searchTerm.toLowerCase()) || item.questionnaireNo.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesResult = selectedResults.length === 0 || selectedResults.includes(item.result);
@@ -393,31 +399,54 @@ const App = () => {
     });
   }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths, selectedTypes]);
 
+  // FINAL Filtered Data (Base + KPI Click) - Used for Charts and List
+  const finalFilteredData = useMemo(() => {
+    if (!activeKpiFilter) return baseFilteredData;
+    return baseFilteredData.filter(item => {
+        if (activeKpiFilter === 'audited') return item.type !== 'ยังไม่ได้ตรวจ' && item.type !== 'N/A' && item.type !== '';
+        if (activeKpiFilter === 'pass') return item.result.startsWith('ดีเยี่ยม') || item.result.startsWith('ผ่านเกณฑ์');
+        if (activeKpiFilter === 'improve') return item.result.startsWith('ควรปรับปรุง');
+        if (activeKpiFilter === 'error') return item.result.startsWith('พบข้อผิดพลาด');
+        return true;
+    });
+  }, [baseFilteredData, activeKpiFilter]);
+
   const totalWorkByMonthOnly = useMemo(() => {
     if (selectedMonths.length === 0) return data.length;
     return data.filter(item => selectedMonths.includes(item.month)).length;
   }, [data, selectedMonths]);
 
+  // Use finalFilteredData for Charts/Matrix to reflect drill-down
   const agentSummary = useMemo(() => {
     const summaryMap = {};
-    filteredData.forEach(item => {
+    finalFilteredData.forEach(item => {
       if (!summaryMap[item.agent]) { summaryMap[item.agent] = { name: item.agent, total: 0 }; RESULT_ORDER.forEach(r => summaryMap[item.agent][r] = 0); }
       if (summaryMap[item.agent][item.result] !== undefined) summaryMap[item.agent][item.result] += 1;
       summaryMap[item.agent].total += 1;
     });
     return Object.values(summaryMap).sort((a, b) => b.total - a.total);
-  }, [filteredData]);
+  }, [finalFilteredData]);
 
   const chartData = useMemo(() => {
-    const total = filteredData.length;
+    const total = finalFilteredData.length;
     return RESULT_ORDER.map(key => ({ 
-      name: formatResultDisplay(key), full: key, count: filteredData.filter(d => d.result === key).length, 
-      percent: total > 0 ? ((filteredData.filter(d => d.result === key).length / total) * 100).toFixed(1) : 0, 
+      name: formatResultDisplay(key), full: key, count: finalFilteredData.filter(d => d.result === key).length, 
+      percent: total > 0 ? ((finalFilteredData.filter(d => d.result === key).length / total) * 100).toFixed(1) : 0, 
       color: getResultColor(key) 
     }));
-  }, [filteredData]);
+  }, [finalFilteredData]);
 
-  // --- New Monthly Performance Chart Data (Updated to %) ---
+  // Use baseFilteredData for KPI Stats so numbers don't change when clicking cards
+  const passRate = useMemo(() => baseFilteredData.length === 0 ? 0 : ((baseFilteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / baseFilteredData.length) * 100).toFixed(1), [baseFilteredData]);
+
+  const totalAuditedFiltered = useMemo(() => {
+    return baseFilteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
+  }, [baseFilteredData]);
+
+  // Use finalFilteredData for detail list
+  const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? finalFilteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : finalFilteredData, [finalFilteredData, activeCell]);
+
+  // New Monthly Performance Chart Data (Updated to %)
   const monthlyPerformanceData = useMemo(() => {
     return availableMonths.map(month => {
         const monthData = data.filter(d => d.month === month);
@@ -429,13 +458,6 @@ const App = () => {
     });
   }, [data, availableMonths]);
 
-  const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? filteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : filteredData, [filteredData, activeCell]);
-  const passRate = useMemo(() => filteredData.length === 0 ? 0 : ((filteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / filteredData.length) * 100).toFixed(1), [filteredData]);
-
-  const totalAuditedFiltered = useMemo(() => {
-    return filteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
-  }, [filteredData]);
-
   const handleMatrixClick = (agentName, type) => {
     if (activeCell.agent === agentName && activeCell.resultType === type) setActiveCell({ agent: null, resultType: null });
     else { setActiveCell({ agent: agentName, resultType: type }); document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' }); }
@@ -443,6 +465,19 @@ const App = () => {
 
   const handleToggleFilter = (item, selectedList, setSelectedFn) => {
     selectedList.includes(item) ? setSelectedFn(selectedList.filter(i => i !== item)) : setSelectedFn([...selectedList, item]);
+  };
+
+  // Function to handle KPI Card Click
+  const handleKpiClick = (filterType) => {
+      if (activeKpiFilter === filterType) {
+          setActiveKpiFilter(null); // Toggle off
+      } else {
+          setActiveKpiFilter(filterType);
+          // Auto scroll to detail section after small delay to let render happen
+          setTimeout(() => {
+              document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+      }
   };
 
   if (!isAuthenticated) {
@@ -530,7 +565,7 @@ const App = () => {
              <button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-white"><X size={20} /></button>
           </div>
           <div className="space-y-8">
-             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setActiveCell({ agent: null, resultType: null }); }} className="w-full py-2.5 text-xs font-black text-indigo-400 bg-indigo-600/10 hover:bg-indigo-600/20 rounded-xl border border-indigo-600/20 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
+             <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-400 bg-indigo-600/10 hover:bg-indigo-600/20 rounded-xl border border-indigo-600/20 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
              <FilterSection title="เดือน" items={availableMonths} selectedItems={selectedMonths} onToggle={(item) => handleToggleFilter(item, selectedMonths, setSelectedMonths)} onSelectAll={() => setSelectedMonths(availableMonths)} onClear={() => setSelectedMonths([])} />
              <FilterSection title="Supervisor" items={availableSups} selectedItems={selectedSups} onToggle={(item) => handleToggleFilter(item, selectedSups, setSelectedSups)} onSelectAll={() => setSelectedSups(availableSups)} onClear={() => setSelectedSups([])} />
              <FilterSection title="ประเภทงาน (AC / BC)" items={availableTypes} selectedItems={selectedTypes} onToggle={(item) => handleToggleFilter(item, selectedTypes, setSelectedTypes)} onSelectAll={() => setSelectedTypes(availableTypes)} onClear={() => setSelectedTypes([])} />
@@ -567,24 +602,69 @@ const App = () => {
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-                { label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', value: totalWorkByMonthOnly, icon: FileText, color: 'text-white', bg: 'bg-zinc-900 border-slate-800' },
                 { 
-                  label: 'จำนวนที่ตรวจแล้ว (AC/BC ตาม Filter)', 
+                  id: 'total',
+                  label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', 
+                  value: totalWorkByMonthOnly, 
+                  icon: FileText, 
+                  color: 'text-white', 
+                  bg: 'bg-zinc-900 border-slate-800',
+                  activeBg: 'bg-slate-800 ring-2 ring-slate-600'
+                },
+                { 
+                  id: 'audited',
+                  label: 'จำนวนที่ตรวจแล้ว (AC/BC)', 
                   value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, 
                   icon: Database, 
                   color: 'text-indigo-400', 
-                  bg: 'bg-indigo-950/20 border-indigo-900/30' 
+                  bg: 'bg-indigo-950/20 border-indigo-900/30',
+                  activeBg: 'bg-indigo-900/40 ring-2 ring-indigo-500'
                 },
-                { label: 'อัตราผ่านเกณฑ์', value: `${passRate}%`, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-900/20 shadow-emerald-900/5' },
-                { label: 'ควรปรับปรุง', value: filteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-900/20' },
-                { label: 'พบข้อผิดพลาด', value: filteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-900/20' }
-            ].map((kpi, i) => (
-                <div key={i} className={`p-6 rounded-[2.5rem] border shadow-sm ${kpi.bg}`}>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-slate-800/50 ${kpi.color}`}><kpi.icon size={16} /></div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
-                  <h2 className={`text-3xl font-black ${kpi.color} tracking-tighter mt-1 uppercase`}>{kpi.value}</h2>
-                </div>
-            ))}
+                { 
+                  id: 'pass',
+                  label: 'อัตราผ่านเกณฑ์', 
+                  value: `${passRate}%`, 
+                  icon: CheckCircle, 
+                  color: 'text-emerald-500', 
+                  bg: 'bg-emerald-500/10 border-emerald-900/20 shadow-emerald-900/5',
+                  activeBg: 'bg-emerald-500/20 ring-2 ring-emerald-500'
+                },
+                { 
+                  id: 'improve',
+                  label: 'ควรปรับปรุง', 
+                  value: baseFilteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, 
+                  icon: AlertTriangle, 
+                  color: 'text-amber-500', 
+                  bg: 'bg-amber-500/10 border-amber-900/20',
+                  activeBg: 'bg-amber-500/20 ring-2 ring-amber-500'
+                },
+                { 
+                  id: 'error',
+                  label: 'พบข้อผิดพลาด', 
+                  value: baseFilteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, 
+                  icon: XCircle, 
+                  color: 'text-rose-500', 
+                  bg: 'bg-rose-500/10 border-rose-900/20',
+                  activeBg: 'bg-rose-500/20 ring-2 ring-rose-500'
+                }
+            ].map((kpi) => {
+                const isActive = activeKpiFilter === kpi.id || (kpi.id === 'total' && activeKpiFilter === null);
+                // Total card special case: clicking it clears filter
+                const isTotal = kpi.id === 'total';
+                
+                return (
+                  <button 
+                    key={kpi.id} 
+                    onClick={() => handleKpiClick(isTotal ? null : kpi.id)}
+                    className={`text-left p-6 rounded-[2.5rem] border shadow-sm transition-all duration-200 active:scale-95 group relative overflow-hidden ${isActive && !isTotal ? kpi.activeBg : kpi.bg} ${!isActive ? 'hover:border-slate-600' : ''}`}
+                  >
+                    {isActive && !isTotal && <div className="absolute top-3 right-4 text-[10px] font-black uppercase text-white bg-black/30 px-2 py-0.5 rounded-full flex items-center gap-1"><MousePointerClick size={10}/> Filtering</div>}
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-slate-800/50 ${kpi.color}`}><kpi.icon size={16} /></div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
+                    <h2 className={`text-3xl font-black ${kpi.color} tracking-tighter mt-1 uppercase`}>{kpi.value}</h2>
+                  </button>
+                );
+            })}
         </div>
 
         {/* --- VISUAL INTELLIGENCE SECTION --- */}
@@ -700,7 +780,10 @@ const App = () => {
             <div className="p-8 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="space-y-1">
                     <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-2 italic"><MessageSquare size={16} className="text-indigo-500" /> รายละเอียดรายเคส</h3>
-                    {activeCell.agent && <div className="flex items-center gap-2 mt-2"><span className="px-3 py-1 bg-indigo-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse">กำลังแสดง: {activeCell.agent}</span><button onClick={() => setActiveCell({ agent: null, resultType: null })} className="text-slate-500 hover:text-white"><X size={12}/></button></div>}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {activeCell.agent && <span className="px-3 py-1 bg-indigo-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">กำลังแสดง: {activeCell.agent} <button onClick={() => setActiveCell({ agent: null, resultType: null })} className="hover:text-slate-300"><X size={10}/></button></span>}
+                        {activeKpiFilter && <span className="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase italic animate-pulse flex items-center gap-2">Filter: {activeKpiFilter} <button onClick={() => setActiveKpiFilter(null)} className="hover:text-slate-300"><X size={10}/></button></span>}
+                    </div>
                 </div>
                 <div className="relative w-full md:w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} /><input type="text" placeholder="ค้นหาพนักงาน หรือ เลขชุด..." className="w-full pl-12 pr-6 py-4 bg-slate-800/30 border border-slate-700 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-600 outline-none text-white shadow-inner" value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} /></div>
             </div>
