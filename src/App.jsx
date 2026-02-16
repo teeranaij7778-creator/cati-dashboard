@@ -35,7 +35,7 @@ const SCORE_OPTIONS = ['5', '4', '3', '2', '1', '-'];
 const SCORE_LABELS = { '5': '5.ดี', '4': '4.ค่อนข้างดี', '3': '3.ปานกลาง', '2': '2.ไม่ค่อยดี', '1': '1.ไม่ดีเลย', '-': '-' };
 
 // รายชื่อ Supervisor สำหรับ Dropdown
-const SUPERVISOR_OPTIONS = ['เสกข์พลกฤต', 'ศรัณยกร', 'นิตยา', 'มณีรัตน์', 'Gullup'];
+const SUPERVISOR_OPTIONS = ['เสกข์พลกฤต', 'ศรัณยกร', 'นิตยา', 'มณีรัตน์', 'Gallup'];
 
 const formatResultDisplay = (text) => (text ? text.split('(')[0].trim() : '-');
 
