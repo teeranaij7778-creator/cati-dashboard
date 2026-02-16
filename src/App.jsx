@@ -7,8 +7,9 @@ import {
   FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus, MapPin
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.3 LIGHT THEME + QC USER + TOUCHPOINT)
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.4 LIGHT THEME + QC USER + TOUCHPOINT + PASS COUNT)
  * - THEME: LIGHT MODE (Clean White/Slate)
+ * - UPDATE V2.4: Changed 'Pass Rate %' KPI to 'Pass Count' (Number)
  * - FEATURE: Grand Total Row included with Vertical %
  * - FEATURE: Row Total Column includes % share
  * - FEATURE: Added TOUCH_POINT (Column F) Display & Filter
@@ -481,7 +482,8 @@ const App = () => {
   }, [finalFilteredData]);
 
   // Use baseFilteredData for KPI Stats so numbers don't change when clicking cards
-  const passRate = useMemo(() => baseFilteredData.length === 0 ? 0 : ((baseFilteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length / baseFilteredData.length) * 100).toFixed(1), [baseFilteredData]);
+  // UPDATED V2.4: Changed Logic to Count instead of Rate %
+  const passCount = useMemo(() => baseFilteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length, [baseFilteredData]);
 
   const totalAuditedFiltered = useMemo(() => {
     return baseFilteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
@@ -684,8 +686,8 @@ const App = () => {
                 },
                 { 
                   id: 'pass',
-                  label: 'อัตราผ่านเกณฑ์', 
-                  value: `${passRate}%`, 
+                  label: 'จำนวนผ่านเกณฑ์', 
+                  value: passCount, 
                   icon: CheckCircle, 
                   color: 'text-emerald-600', 
                   bg: 'bg-emerald-50 border-emerald-100',
