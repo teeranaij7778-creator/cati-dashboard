@@ -4,13 +4,14 @@ import {
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
-  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus, MapPin
+  FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus, MapPin, Trophy, Medal, Crown
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.5 LIGHT THEME + AGENT TREND)
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.7 FIX LEADERBOARD 0%)
  * - THEME: LIGHT MODE (Clean White/Slate)
+ * - FIX: Leaderboard Pass Rate calculation was 0% due to incorrect key access.
+ * - FEATURE: "Top Performer Leaderboard" (Idea #3)
  * - FEATURE: "Agent Performance Trend" Chart (Idea #2)
- * - Shows Total Cases (Bar) vs Pass Rate % (Line) per month when an agent is selected.
  * - FEATURE: Grand Total Row included with Vertical %
  * - FEATURE: Row Total Column includes % share
  * - FEATURE: Added TOUCH_POINT (Column F) Display & Filter
@@ -362,26 +363,34 @@ const App = () => {
     });
   }, [data, availableMonths]);
 
-  // NEW IDEA #2: Agent Trend Data (Based on Base Data: Result & Month)
+  // Agent Trend Data
   const selectedAgentTrendData = useMemo(() => {
     if (!activeCell.agent) return [];
-    
-    // Use availableMonths to ensure chronological order (assuming availableMonths is sorted correctly in base)
     return availableMonths.map(month => {
         const monthData = data.filter(d => d.agent === activeCell.agent && d.month === month);
         const total = monthData.length;
         const pass = monthData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length;
         const rate = total > 0 ? ((pass / total) * 100).toFixed(1) : 0;
-        
-        return {
-            name: month,
-            total: total,
-            passRate: parseFloat(rate),
-            passCount: pass
-        };
-    }).filter(d => d.total > 0); // Show only months with data for cleaner chart
+        return { name: month, total: total, passRate: parseFloat(rate), passCount: pass };
+    }).filter(d => d.total > 0);
   }, [activeCell.agent, data, availableMonths]);
 
+  // NEW IDEA #3: Leaderboard Data (Calculated from agentSummary)
+  const leaderboardData = useMemo(() => {
+    return agentSummary
+        .map(agent => {
+            // FIX: Use full strings from RESULT_ORDER to access counts instead of short keys
+            const pass = (agent[RESULT_ORDER[0]] || 0) + (agent[RESULT_ORDER[1]] || 0);
+            const rate = agent.total > 0 ? (pass / agent.total) * 100 : 0;
+            return { ...agent, passRate: rate, passCount: pass };
+        })
+        .filter(a => a.total > 0) // Only active agents
+        .sort((a, b) => {
+            if (b.passRate !== a.passRate) return b.passRate - a.passRate; // Primary Sort: Pass Rate % High to Low
+            return b.total - a.total; // Tie-breaker: Volume High to Low
+        })
+        .slice(0, 5); // Top 5
+  }, [agentSummary]);
 
   const handleMatrixClick = (agentName, type) => {
     if (activeCell.agent === agentName && activeCell.resultType === type) setActiveCell({ agent: null, resultType: null });
@@ -472,8 +481,9 @@ const App = () => {
             })}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-            <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
+        {/* --- VISUAL INTELLIGENCE SECTION WITH LEADERBOARD --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex flex-col min-h-[300px]">
                 <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><PieChart size={16} className="text-indigo-500" /> Case Composition Summary</h3>
                 <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -485,10 +495,10 @@ const App = () => {
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">{chartData.map(c => (<div key={c.full} className="flex items-center gap-2"><div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div><span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span></div>))}</div>
+                <div className="grid grid-cols-2 gap-2 mt-6">{chartData.map(c => (<div key={c.full} className="flex items-center gap-2"><div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div><span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span></div>))}</div>
             </div>
 
-             <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
+             <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex flex-col min-h-[300px]">
                 <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><BarChart2 size={16} className="text-emerald-500" /> Monthly Audit Progress (%)</h3>
                 <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -501,6 +511,35 @@ const App = () => {
                             <Bar dataKey="percent" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500}>{monthlyPerformanceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.percent >= 100 ? '#3b82f6' : 'url(#barGradient)'} />))}</Bar>
                         </BarChart>
                     </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* --- NEW IDEA #3: LEADERBOARD --- */}
+            <div className="bg-gradient-to-br from-indigo-50 to-white p-8 rounded-[3rem] shadow-2xl border border-indigo-100 flex flex-col min-h-[300px] relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 text-indigo-500 pointer-events-none"><Trophy size={100} /></div>
+                <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6 z-10"><Trophy size={16} className="text-amber-500" /> Top 5 Best Quality Agents</h3>
+                
+                <div className="flex-1 space-y-4 z-10">
+                    {leaderboardData.length > 0 ? leaderboardData.map((agent, idx) => (
+                        <div key={agent.name} className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-indigo-50 shadow-sm flex items-center gap-3 transition-transform hover:scale-105 cursor-default">
+                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg shrink-0 shadow-inner ${idx === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' : idx === 1 ? 'bg-slate-200 text-slate-600 border border-slate-300' : idx === 2 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-50 text-slate-400 border border-slate-100'}`}>
+                                {idx === 0 ? <Crown size={20}/> : idx < 3 ? <Medal size={20}/> : idx + 1}
+                             </div>
+                             <div className="flex-1 min-w-0">
+                                <p className="text-xs font-black text-slate-700 truncate">{agent.name}</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{agent.total} Cases Audited</p>
+                             </div>
+                             <div className="text-right">
+                                <p className={`text-sm font-black ${agent.passRate >= 90 ? 'text-emerald-500' : agent.passRate >= 80 ? 'text-indigo-500' : 'text-slate-500'}`}>{agent.passRate.toFixed(1)}%</p>
+                                <p className="text-[8px] text-slate-400 font-bold uppercase">Pass Rate</p>
+                             </div>
+                        </div>
+                    )) : (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-300">
+                            <Users size={32} className="mb-2 opacity-50"/>
+                            <p className="text-[10px] font-black uppercase tracking-widest">No Data Available</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
