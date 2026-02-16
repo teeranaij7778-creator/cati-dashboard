@@ -1,21 +1,21 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart, Pie, ComposedChart, Line
 } from 'recharts';
 import { 
   Users, CheckCircle, AlertTriangle, XCircle, Search, 
   FileText, BarChart2, MessageSquare, Calendar, TrendingUp, Database, Link, RefreshCw, Trash2, Globe, FilterX, PlayCircle, UserCheck, Settings, AlertCircle, Info, ChevronRight, ExternalLink, User, ChevronDown, CheckSquare, Square, X, Briefcase, Lock, LogIn, Activity, Filter, Check, Clock, ListChecks, Award, Save, Edit2, Hash, Star, Zap, MousePointerClick, ShieldCheck, UserPlus, MapPin
 } from 'lucide-react';
 
-/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.4 LIGHT THEME + QC USER + TOUCHPOINT + PASS COUNT)
+/** * CATI CES 2026 Analytics Dashboard - MASTER VERSION (V2.5 LIGHT THEME + AGENT TREND)
  * - THEME: LIGHT MODE (Clean White/Slate)
- * - UPDATE V2.4: Changed 'Pass Rate %' KPI to 'Pass Count' (Number)
+ * - FEATURE: "Agent Performance Trend" Chart (Idea #2)
+ * - Shows Total Cases (Bar) vs Pass Rate % (Line) per month when an agent is selected.
  * - FEATURE: Grand Total Row included with Vertical %
  * - FEATURE: Row Total Column includes % share
  * - FEATURE: Added TOUCH_POINT (Column F) Display & Filter
- * - FIX: Supervisor Dropdown & Logic
+ * - UPDATE: Changed 'Pass Rate %' KPI to 'Pass Count'
  * - USER ROLE: Admin (Full), QC (Edit Only), INV (View Only)
- * - CORE: JSON API Connection, Real-time Sync, Buffer Edit System
  */
 
 const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytB3UpN0xv7kNcuk-XqFmwoB6LWekjIEj0B9b8H5Me25mQ0ozy69NniuRvM_uNjWD5/exec";
@@ -35,7 +35,6 @@ const RESULT_ORDER = [
 const SCORE_OPTIONS = ['5', '4', '3', '2', '1', '-'];
 const SCORE_LABELS = { '5': '5.ดี', '4': '4.ค่อนข้างดี', '3': '3.ปานกลาง', '2': '2.ไม่ค่อยดี', '1': '1.ไม่ดีเลย', '-': '-' };
 
-// รายชื่อ Supervisor สำหรับ Dropdown
 const SUPERVISOR_OPTIONS = ['เสกข์พลกฤต', 'ศรัณยกร', 'นิตยา', 'มณีรัตน์', 'Gallup'];
 
 const formatResultDisplay = (text) => (text ? text.split('(')[0].trim() : '-');
@@ -75,7 +74,6 @@ const App = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   
-  // Ref สำหรับเก็บข้อมูลที่เพิ่งแก้ไขไป (Buffer) เพื่อป้องกันการเด้งกลับ
   const recentEdits = useRef(new Map());
 
   const getStorage = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch(e) { return fallback; } };
@@ -90,11 +88,8 @@ const App = () => {
   const [selectedResults, setSelectedResults] = useState([]);
   const [selectedAgents, setSelectedAgents] = useState([]); 
   const [selectedTypes, setSelectedTypes] = useState([]);
-  
-  // NEW V2.3: Touchpoint Filter State
   const [selectedTouchpoints, setSelectedTouchpoints] = useState([]);
   
-  // NEW: State for KPI Card Quick Filter
   const [activeKpiFilter, setActiveKpiFilter] = useState(null); // 'audited', 'pass', 'improve', 'error'
   
   const [showSync, setShowSync] = useState(getStorage('apps_script_url', '') === '' && DEFAULT_APPS_SCRIPT_URL === '');
@@ -121,7 +116,7 @@ const App = () => {
     let intervalId;
     if (isAuthenticated && appsScriptUrl && appsScriptUrl.includes('http')) {
       fetchFromAppsScript(appsScriptUrl);
-      intervalId = setInterval(() => fetchFromAppsScript(appsScriptUrl), 60000); // 1 minute (Faster refresh)
+      intervalId = setInterval(() => fetchFromAppsScript(appsScriptUrl), 60000); 
     }
     return () => clearInterval(intervalId);
   }, [appsScriptUrl, isAuthenticated]);
@@ -129,39 +124,23 @@ const App = () => {
   const fetchFromAppsScript = async (urlToFetch) => {
     setLoading(true); setError(null);
     try {
-      // 1. Fetch content with cache busting
       const fetchUrl = `${urlToFetch}${urlToFetch.includes('?') ? '&' : '?'}t=${Date.now()}`;
       const response = await fetch(fetchUrl);
       
-      if (!response.ok) {
-          throw new Error(`Server returned ${response.status} ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Server returned ${response.status} ${response.statusText}`);
 
-      // 2. Read as Text first to debug
       const text = await response.text();
-      
-      // 3. Try parsing JSON
       let allRows;
-      try {
-        allRows = JSON.parse(text);
-      } catch (jsonErr) {
+      try { allRows = JSON.parse(text); } 
+      catch (jsonErr) {
         const preview = text.substring(0, 50);
-        if (text.trim().startsWith('<')) {
-            throw new Error(`URL ส่งกลับมาเป็น HTML: ${preview}... เช็คสิทธิ์ 'Anyone'`);
-        } else {
-            throw new Error(`ได้รับข้อมูลที่ไม่ใช่ JSON: "${preview}..."`);
-        }
+        throw new Error(text.trim().startsWith('<') ? `URL ส่งกลับมาเป็น HTML: ${preview}...` : `ได้รับข้อมูลที่ไม่ใช่ JSON: "${preview}..."`);
       }
       
-      if (allRows.error) {
-          throw new Error(`Apps Script Error: ${allRows.error}`);
-      }
-
+      if (allRows.error) throw new Error(`Apps Script Error: ${allRows.error}`);
       if (!Array.isArray(allRows)) throw new Error("Format ข้อมูลไม่ถูกต้อง (ต้องเป็น Array)");
-      
       if (allRows.length === 0) throw new Error("เชื่อมต่อสำเร็จ แต่ Sheet ว่างเปล่า!");
 
-      // 2. Logic ในการหา Header (ใช้หา Date, Month, Sup)
       let headerIdx = allRows.findIndex(row => 
         Array.isArray(row) && row.some(cell => 
           (cell && cell.toString().toLowerCase().includes("interviewer")) || 
@@ -171,19 +150,10 @@ const App = () => {
       );
 
       if (headerIdx === -1) {
-         headerIdx = allRows.findIndex(row => 
-            Array.isArray(row) && row.some(cell => 
-              (cell && cell.toString().toLowerCase().includes("date")) || 
-              (cell && cell.toString().includes("วันที่"))
-            )
-         );
+         headerIdx = allRows.findIndex(row => Array.isArray(row) && row.some(cell => (cell && cell.toString().toLowerCase().includes("date")) || (cell && cell.toString().includes("วันที่"))));
       }
 
-      if (headerIdx === -1 && allRows.length > 0) {
-          console.warn("Could not find specific header keywords. Defaulting to row 0.");
-          headerIdx = 0;
-      }
-
+      if (headerIdx === -1 && allRows.length > 0) headerIdx = 0;
       if (headerIdx === -1) throw new Error("ไม่พบคอลัมน์ข้อมูลที่กำหนด (กรุณาตรวจสอบ Header Row)");
 
       const headers = allRows[headerIdx].map(h => h ? h.toString().trim() : "");
@@ -197,119 +167,80 @@ const App = () => {
         });
       };
 
-      // หา Index ของ Columns ทั่วไป
       const idx = {
         month: getIdx(["เดือน", "month"]), 
         date: getIdx(["วันที่สัมภาษณ์", "date", "timestamp"]), 
-        // touchpoint: getIdx(["TOUCH_POINT", "touchpoint"]), // REMOVED: Use Force Column F
         type: getIdx(["AC / BC", "type", "ac/bc"]), 
-        sup: getIdx(["Supervisor", "sup"]), // This is mostly for filtering logic
+        sup: getIdx(["Supervisor", "sup"]), 
         questionnaireNo: getIdx(["questionnaire", "no.", "เลขชุด", "id"]), 
         audio: getIdx(["ไฟล์เสียง", "audio", "record"]) 
       };
 
-      // FIX: Force Columns (Hardcoded to match user sheet structure)
-      const COL_TOUCHPOINT = 5; // Column F (Index 5)
-      const COL_INTERVIEWER_ID = 9;  // Column J (Index 9)
-      const COL_INTERVIEWER_NAME = 10; // Column K (Index 10)
-      const COL_RESULT = 12; // Column M (Index 12)
-      
-      // *** MAPPING UPDATE V1.6 ***
-      const COL_CATI_SUPERVISOR = 7; // Column H (Index 7)
-      const COL_QC_COMMENT = 13; // Column N (Index 13)
-
-      const EVAL_START_INDEX = 15; // Column P
-      const EVAL_COUNT = 13; // P to AB
+      const COL_TOUCHPOINT = 5; 
+      const COL_INTERVIEWER_ID = 9;  
+      const COL_INTERVIEWER_NAME = 10; 
+      const COL_RESULT = 12; 
+      const COL_CATI_SUPERVISOR = 7; 
+      const COL_QC_COMMENT = 13; 
+      const EVAL_START_INDEX = 15; 
+      const EVAL_COUNT = 13; 
 
       let parsedData = allRows.slice(headerIdx + 1)
         .map((row, i) => ({ row, actualRowNumber: i + headerIdx + 2 }))
         .filter(({ row }) => {
           if (!row || !Array.isArray(row)) return false;
-          // FIX: Force check Column K (Index 10) for existence
           const agentCode = row[COL_INTERVIEWER_NAME]?.toString().trim() || "";
           return agentCode !== "" && !agentCode.includes("#N/A");
         })
         .map(({ row, actualRowNumber }, index) => {
-          
-          // FIX: Read Result from Column M (Index 12)
           let rawResult = (row[COL_RESULT]) ? row[COL_RESULT].toString().trim() : "N/A";
           let cleanResult = rawResult;
-          
-          // FIX: Logic startsWith แทน includes เพื่อป้องกัน "ไม่ผ่านเกณฑ์" ไป Match กับ "ผ่านเกณฑ์"
           const matchedResult = RESULT_ORDER.find(opt => {
               const prefix = opt.split(':')[0].trim();
               return rawResult.startsWith(prefix);
           });
-          
           if (matchedResult) cleanResult = matchedResult;
           
-          // FIX: Force read Interviewer ID from Column J (Index 9)
           const interviewerId = row[COL_INTERVIEWER_ID] ? row[COL_INTERVIEWER_ID].toString().trim() : '-';
-
-          // FIX: Force read Interviewer Name from Column K (Index 10) always
           const agentId = row[COL_INTERVIEWER_NAME] ? row[COL_INTERVIEWER_NAME].toString().trim() : 'Unknown';
-          
-          // Display format: ID : Name
           const displayAgent = `${interviewerId} : ${agentId}`;
-          
-          // FIX: Read CATI Supervisor from Column H (Index 7)
           const supervisorVal = (row[COL_CATI_SUPERVISOR]) ? row[COL_CATI_SUPERVISOR].toString() : '';
-
-          // FIX: Read QC Comment from Column N (Index 13)
           const commentVal = (row[COL_QC_COMMENT]) ? row[COL_QC_COMMENT].toString() : '';
-
-          // NEW V2.3: Read Touchpoint from Column F (Index 5)
           const touchpointVal = (row[COL_TOUCHPOINT]) ? row[COL_TOUCHPOINT].toString() : 'N/A';
-
           const rawType = (idx.type !== -1 && row[idx.type]) ? row[idx.type].toString().trim() : "";
           const cleanType = (rawType === "" || rawType === "N/A") ? "ยังไม่ได้ตรวจ" : rawType;
 
-          // Evaluations: Read 13 columns starting from P (Index 15)
           const evaluations = [];
           for (let i = 0; i < EVAL_COUNT; i++) {
               const currentIdx = EVAL_START_INDEX + i;
-              // Use header name if available, else generic Name
               const label = headers[currentIdx] || `Criteria ${i+1}`;
               const value = (row[currentIdx] !== undefined && row[currentIdx] !== null) ? row[currentIdx].toString() : '-';
-              evaluations.push({
-                  label: label,
-                  value: value
-              });
+              evaluations.push({ label: label, value: value });
           }
 
           return {
             id: index, rowIndex: actualRowNumber, 
             month: (idx.month !== -1 && row[idx.month]) ? row[idx.month] : 'N/A', 
             date: (idx.date !== -1 && row[idx.date]) ? row[idx.date] : 'N/A', 
-            agent: displayAgent, // ใช้ค่าที่รวม ID+Name แล้ว
-            rawName: agentId,    // เก็บชื่อดิบไว้ใช้
-            interviewerId: interviewerId, // Store Interviewer ID
+            agent: displayAgent, 
+            rawName: agentId,    
+            interviewerId: interviewerId, 
             questionnaireNo: (idx.questionnaireNo !== -1 && row[idx.questionnaireNo]) ? row[idx.questionnaireNo] : '-', 
             result: cleanResult, 
-            supervisor: supervisorVal, // Use Forced Column H
-            comment: commentVal, // Use Forced Column N
+            supervisor: supervisorVal, 
+            comment: commentVal, 
             audio: (idx.audio !== -1 && row[idx.audio]) ? row[idx.audio] : '', 
-            touchpoint: touchpointVal, // Use Forced Column F
-            // Note: 'supervisor' key above is Column H. 'supervisorFilter' below is for sidebar filter logic from headers
+            touchpoint: touchpointVal, 
             supervisorFilter: (idx.sup !== -1 && row[idx.sup]) ? row[idx.sup] : 'N/A',
             type: cleanType,
             evaluations: evaluations
           };
         });
 
-      // --- CRITICAL FIX: Merge with Recent Edits to prevent reverting ---
-      // ป้องกันการเด้งกลับของข้อมูลด้วยการเอาค่าจาก Local Buffer (recentEdits) ไปทับข้อมูลที่เพิ่งดึงมา
-      // หากข้อมูลใน Buffer นั้นใหม่กว่าและยังไม่เกิน 60 วินาที
       parsedData = parsedData.map(item => {
         const cached = recentEdits.current.get(item.id);
-        if (cached) {
-            // ถ้ามี Cache และเวลาผ่านไปไม่ถึง 60 วินาที ให้ใช้ข้อมูลจาก Cache แทน (ถือว่า Server ยังไม่อัปเดต)
-            if (Date.now() - cached.timestamp < 60000) {
-                 return cached.data;
-            } else {
-                 recentEdits.current.delete(item.id); // Cache หมดอายุแล้ว ลบออก
-            }
-        }
+        if (cached && Date.now() - cached.timestamp < 60000) return cached.data;
+        else if (cached) recentEdits.current.delete(item.id);
         return item;
       });
 
@@ -317,88 +248,37 @@ const App = () => {
       setLastUpdated(new Date().toLocaleTimeString('th-TH'));
       localStorage.setItem('apps_script_url', urlToFetch);
       setShowSync(false);
-
-    } catch (err) { 
-        setError(err.message); 
-        console.error("Fetch Error:", err);
-    } finally { 
-        setLoading(false); 
-    }
+    } catch (err) { setError(err.message); console.error("Fetch Error:", err); } finally { setLoading(false); }
   };
 
   const handleUpdateCase = async () => {
     if (!appsScriptUrl) return alert("กรุณาตั้งค่า Apps Script URL");
-    
-    if (editingCase.type === "ยังไม่ได้ตรวจ") {
-      alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก");
-      return;
-    }
+    if (editingCase.type === "ยังไม่ได้ตรวจ") return alert("กรุณาเลือกประเภทงาน (AC หรือ BC) ก่อนบันทึก");
 
     setIsSaving(true);
     const backupData = [...data];
-
-    // 1. Optimistic Update (Update UI immediately)
     const updatedItem = { ...editingCase };
+    recentEdits.current.set(updatedItem.id, { data: updatedItem, timestamp: Date.now() });
 
-    // --- CRITICAL FIX: Add to Recent Edits Buffer ---
-    // เก็บข้อมูลลง Buffer ทันทีเพื่อกันไม่ให้ Fetch ครั้งถัดไปมาทับข้อมูลนี้
-    recentEdits.current.set(updatedItem.id, {
-        data: updatedItem,
-        timestamp: Date.now()
-    });
-
-    setData(prevData => prevData.map(item => {
-        if (item.id === editingCase.id) {
-            return updatedItem;
-        }
-        return item;
-    }));
+    setData(prevData => prevData.map(item => item.id === editingCase.id ? updatedItem : item));
 
     try {
       const updateData = {
-        rowIndex: editingCase.rowIndex, 
-        result: editingCase.result,
-        type: editingCase.type,
-        supervisor: String(editingCase.supervisor || ''), // Send supervisor (Column H) - Force String to prevent errors
-        evaluations: editingCase.evaluations.map(e => e.value), // Array of values for P-AB
-        comment: editingCase.comment // Send comment (Column N)
+        rowIndex: editingCase.rowIndex, result: editingCase.result, type: editingCase.type,
+        supervisor: String(editingCase.supervisor || ''), evaluations: editingCase.evaluations.map(e => e.value), comment: editingCase.comment
       };
-      
-      // 2. Send to Backend
-      await fetch(appsScriptUrl, { 
-        method: 'POST', 
-        mode: 'no-cors', 
-        cache: 'no-cache', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(updateData) 
-      });
-      
-      // 3. Clear editing state
-      setEditingCase(null); 
-      setIsSaving(false);
-
-      // 4. Background re-fetch (Optional: verify consistency later)
-      setTimeout(() => { 
-        // fetchFromAppsScript(appsScriptUrl); // Can uncomment if needed, but UI is already updated
-      }, 3000);
-
+      await fetch(appsScriptUrl, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updateData) });
+      setEditingCase(null); setIsSaving(false);
     } catch (err) { 
       alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message); 
-      
-      // ลบออกจาก Buffer ถ้าบันทึกไม่สำเร็จ
       recentEdits.current.delete(editingCase.id);
-      
-      setData(backupData); // Revert on error
-      setIsSaving(false); 
+      setData(backupData); setIsSaving(false); 
     }
   };
 
-  // --- Analytical Calculations ---
   const availableMonths = useMemo(() => [...new Set(data.map(d => d.month).filter(m => m !== 'N/A'))].sort(), [data]);
   const availableSups = useMemo(() => [...new Set(data.map(d => d.supervisorFilter).filter(s => s !== 'N/A'))].sort(), [data]);
   const availableTypes = useMemo(() => [...new Set(data.map(d => d.type).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
-  
-  // NEW V2.3: Available Touchpoints
   const availableTouchpoints = useMemo(() => [...new Set(data.map(d => d.touchpoint).filter(t => t !== 'N/A' && t !== ''))].sort(), [data]);
 
   const availableAgents = useMemo(() => {
@@ -406,14 +286,10 @@ const App = () => {
     if (selectedSups.length > 0) filtered = filtered.filter(d => selectedSups.includes(d.supervisorFilter));
     if (selectedMonths.length > 0) filtered = filtered.filter(d => selectedMonths.includes(d.month));
     if (selectedTypes.length > 0) filtered = filtered.filter(d => selectedTypes.includes(d.type));
-    
-    // NEW V2.3: Filter Agents by Touchpoint
     if (selectedTouchpoints.length > 0) filtered = filtered.filter(d => selectedTouchpoints.includes(d.touchpoint));
-
     return [...new Set(filtered.map(d => d.agent).filter(a => a !== 'Unknown'))].sort();
   }, [data, selectedSups, selectedMonths, selectedTypes, selectedTouchpoints]);
 
-  // BASE Filtered Data (Sidebar + Search Only) - Used for KPI Cards numbers
   const baseFilteredData = useMemo(() => {
     return data.filter(item => {
       const matchesSearch = item.agent.toLowerCase().includes(searchTerm.toLowerCase()) || item.comment.toLowerCase().includes(searchTerm.toLowerCase()) || item.questionnaireNo.toLowerCase().includes(searchTerm.toLowerCase());
@@ -422,15 +298,11 @@ const App = () => {
       const matchesAgent = selectedAgents.length === 0 || selectedAgents.includes(item.agent);
       const matchesMonth = selectedMonths.length === 0 || selectedMonths.includes(item.month);
       const matchesType = selectedTypes.length === 0 || selectedTypes.includes(item.type);
-      
-      // NEW V2.3: Filter by Touchpoint
       const matchesTouchpoint = selectedTouchpoints.length === 0 || selectedTouchpoints.includes(item.touchpoint);
-
       return matchesSearch && matchesResult && matchesSup && matchesAgent && matchesMonth && matchesType && matchesTouchpoint;
     });
   }, [data, searchTerm, selectedResults, selectedSups, selectedAgents, selectedMonths, selectedTypes, selectedTouchpoints]);
 
-  // FINAL Filtered Data (Base + KPI Click) - Used for Charts and List
   const finalFilteredData = useMemo(() => {
     if (!activeKpiFilter) return baseFilteredData;
     return baseFilteredData.filter(item => {
@@ -447,7 +319,6 @@ const App = () => {
     return data.filter(item => selectedMonths.includes(item.month)).length;
   }, [data, selectedMonths]);
 
-  // Use finalFilteredData for Charts/Matrix to reflect drill-down
   const agentSummary = useMemo(() => {
     const summaryMap = {};
     finalFilteredData.forEach(item => {
@@ -458,17 +329,10 @@ const App = () => {
     return Object.values(summaryMap).sort((a, b) => b.total - a.total);
   }, [finalFilteredData]);
 
-  // NEW: Calculate Grand Totals for the Footer Row
   const totalSummary = useMemo(() => {
     const totals = { total: 0 };
     RESULT_ORDER.forEach(r => totals[r] = 0);
-    
-    agentSummary.forEach(agent => {
-        totals.total += agent.total;
-        RESULT_ORDER.forEach(r => {
-            totals[r] += (agent[r] || 0);
-        });
-    });
+    agentSummary.forEach(agent => { totals.total += agent.total; RESULT_ORDER.forEach(r => { totals[r] += (agent[r] || 0); }); });
     return totals;
   }, [agentSummary]);
 
@@ -481,116 +345,73 @@ const App = () => {
     }));
   }, [finalFilteredData]);
 
-  // Use baseFilteredData for KPI Stats so numbers don't change when clicking cards
-  // UPDATED V2.4: Changed Logic to Count instead of Rate %
   const passCount = useMemo(() => baseFilteredData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length, [baseFilteredData]);
+  const passRate = useMemo(() => baseFilteredData.length === 0 ? 0 : ((passCount / baseFilteredData.length) * 100).toFixed(1), [baseFilteredData, passCount]);
+  
+  const totalAuditedFiltered = useMemo(() => baseFilteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length, [baseFilteredData]);
 
-  const totalAuditedFiltered = useMemo(() => {
-    return baseFilteredData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
-  }, [baseFilteredData]);
-
-  // Use finalFilteredData for detail list
   const detailLogs = useMemo(() => (activeCell.agent && activeCell.resultType) ? finalFilteredData.filter(d => d.agent === activeCell.agent && d.result === activeCell.resultType) : finalFilteredData, [finalFilteredData, activeCell]);
 
-  // New Monthly Performance Chart Data (Updated to %)
   const monthlyPerformanceData = useMemo(() => {
     return availableMonths.map(month => {
         const monthData = data.filter(d => d.month === month);
         const total = monthData.length;
-        // Logic for "Audited": type is not 'ยังไม่ได้ตรวจ', 'N/A', or ''
         const audited = monthData.filter(d => d.type !== 'ยังไม่ได้ตรวจ' && d.type !== 'N/A' && d.type !== '').length;
         const percent = total > 0 ? parseFloat(((audited / total) * 100).toFixed(1)) : 0;
         return { name: month, audited, total, percent };
     });
   }, [data, availableMonths]);
 
+  // NEW IDEA #2: Agent Trend Data (Based on Base Data: Result & Month)
+  const selectedAgentTrendData = useMemo(() => {
+    if (!activeCell.agent) return [];
+    
+    // Use availableMonths to ensure chronological order (assuming availableMonths is sorted correctly in base)
+    return availableMonths.map(month => {
+        const monthData = data.filter(d => d.agent === activeCell.agent && d.month === month);
+        const total = monthData.length;
+        const pass = monthData.filter(d => d.result.startsWith('ดีเยี่ยม') || d.result.startsWith('ผ่านเกณฑ์')).length;
+        const rate = total > 0 ? ((pass / total) * 100).toFixed(1) : 0;
+        
+        return {
+            name: month,
+            total: total,
+            passRate: parseFloat(rate),
+            passCount: pass
+        };
+    }).filter(d => d.total > 0); // Show only months with data for cleaner chart
+  }, [activeCell.agent, data, availableMonths]);
+
+
   const handleMatrixClick = (agentName, type) => {
     if (activeCell.agent === agentName && activeCell.resultType === type) setActiveCell({ agent: null, resultType: null });
-    else { setActiveCell({ agent: agentName, resultType: type }); document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' }); }
+    else { setActiveCell({ agent: agentName, resultType: type }); }
   };
 
   const handleToggleFilter = (item, selectedList, setSelectedFn) => {
     selectedList.includes(item) ? setSelectedFn(selectedList.filter(i => i !== item)) : setSelectedFn([...selectedList, item]);
   };
 
-  // Function to handle KPI Card Click
   const handleKpiClick = (filterType) => {
-      if (activeKpiFilter === filterType) {
-          setActiveKpiFilter(null); // Toggle off
-      } else {
-          setActiveKpiFilter(filterType);
-          // Auto scroll to detail section after small delay to let render happen
-          setTimeout(() => {
-              document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' });
-          }, 100);
-      }
+      if (activeKpiFilter === filterType) { setActiveKpiFilter(null); } 
+      else { setActiveKpiFilter(filterType); setTimeout(() => { document.getElementById('detail-section')?.scrollIntoView({ behavior: 'smooth' }); }, 100); }
   };
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-slate-800 font-sans relative overflow-hidden">
-        {/* LIGHT MODE BACKGROUND SHAPES */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-200/30 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-200/30 blur-[120px] rounded-full"></div>
-
         <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2rem] border border-slate-200 w-full max-w-[360px] text-center shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
-          <div className="flex justify-center mb-6">
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
-                <IntageLogo className="scale-110" />
-            </div>
-          </div>
-          <div className="space-y-1 mb-8">
-            <h2 className="text-slate-800 font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2>
-            <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p>
-          </div>
-          
-          <form onSubmit={(e) => { 
-              e.preventDefault(); 
-              if(inputUser==='Admin'&&inputPass==='1234') {
-                  setIsAuthenticated(true); 
-                  setUserRole('Admin');
-              } else if(inputUser==='QC'&&inputPass==='1234') {
-                  setIsAuthenticated(true); 
-                  setUserRole('QC');
-              } else if(inputUser==='INV'&&inputPass==='1234') {
-                  setIsAuthenticated(true); 
-                  setUserRole('INV');
-              } else {
-                  setLoginError('Login Failed'); 
-              }
-          }} className="space-y-4 text-left">
-            <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label>
-                <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="Username" />
-                </div>
-            </div>
-
-            <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label>
-                <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="••••••••" />
-                </div>
-            </div>
-
-            {loginError && (
-                <div className="bg-rose-50 border border-rose-200 py-2 rounded-lg flex items-center justify-center gap-2">
-                    <AlertCircle size={12} className="text-rose-500" />
-                    <p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p>
-                </div>
-            )}
-
-            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 active:scale-95 italic text-xs">
-                <LogIn size={16} />
-                Access System
-            </button>
+          <div className="flex justify-center mb-6"><div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"><IntageLogo className="scale-110" /></div></div>
+          <div className="space-y-1 mb-8"><h2 className="text-slate-800 font-black uppercase text-xs tracking-[0.3em] italic">CATI CES 2026</h2><p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest">Analytics & Quality Control System</p></div>
+          <form onSubmit={(e) => { e.preventDefault(); if(inputUser==='Admin'&&inputPass==='1234') { setIsAuthenticated(true); setUserRole('Admin'); } else if(inputUser==='QC'&&inputPass==='1234') { setIsAuthenticated(true); setUserRole('QC'); } else if(inputUser==='INV'&&inputPass==='1234') { setIsAuthenticated(true); setUserRole('INV'); } else { setLoginError('Login Failed'); } }} className="space-y-4 text-left">
+            <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Authorized Username</label><div className="relative"><User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} /><input type="text" value={inputUser} onChange={e=>setInputUser(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="Username" /></div></div>
+            <div className="space-y-1.5"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Security Password</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} /><input type="password" value={inputPass} onChange={e=>setInputPass(e.target.value)} className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-slate-800 transition-all text-sm font-bold placeholder:text-slate-300" placeholder="••••••••" /></div></div>
+            {loginError && (<div className="bg-rose-50 border border-rose-200 py-2 rounded-lg flex items-center justify-center gap-2"><AlertCircle size={12} className="text-rose-500" /><p className="text-rose-500 text-[9px] font-black uppercase tracking-widest">Authentication Failed</p></div>)}
+            <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 active:scale-95 italic text-xs"><LogIn size={16} /> Access System</button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p>
-          </div>
+          <div className="mt-8 pt-6 border-t border-slate-100"><p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">© 2026 INTAGE (Thailand) Co., Ltd.</p></div>
         </div>
       </div>
     );
@@ -598,39 +419,20 @@ const App = () => {
 
   const FilterSection = ({ title, items, selectedItems, onToggle, onSelectAll, onClear, maxH = "max-h-40" }) => (
     <div className="space-y-2">
-        <div className="flex items-center justify-between pl-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</label>
-            <div className="flex gap-2">
-                <button onClick={onSelectAll} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">เลือกทั้งหมด</button>
-                <button onClick={onClear} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">ล้าง</button>
-            </div>
-        </div>
-        <div className={`bg-slate-50 border border-slate-200 rounded-2xl p-2 overflow-y-auto custom-scrollbar ${maxH}`}>
-            {items.map(item => (
-                <div key={item} onClick={() => onToggle(item)} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 transition-all ${selectedItems.includes(item) ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200' : 'hover:bg-slate-100 text-slate-500'}`}>
-                    {selectedItems.includes(item) ? <CheckSquare size={14} className="text-indigo-600 shrink-0" /> : <Square size={14} className="shrink-0" />}
-                    <span className="truncate">{formatResultDisplay(item)}</span>
-                </div>
-            ))}
-        </div>
+        <div className="flex items-center justify-between pl-2"><label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</label><div className="flex gap-2"><button onClick={onSelectAll} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">เลือกทั้งหมด</button><button onClick={onClear} className="text-[9px] font-bold text-slate-400 hover:text-indigo-500 transition-colors">ล้าง</button></div></div>
+        <div className={`bg-slate-50 border border-slate-200 rounded-2xl p-2 overflow-y-auto custom-scrollbar ${maxH}`}>{items.map(item => (<div key={item} onClick={() => onToggle(item)} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer text-[10px] font-bold mb-1 transition-all ${selectedItems.includes(item) ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-200' : 'hover:bg-slate-100 text-slate-500'}`}>{selectedItems.includes(item) ? <CheckSquare size={14} className="text-indigo-600 shrink-0" /> : <Square size={14} className="shrink-0" />}<span className="truncate">{formatResultDisplay(item)}</span></div>))}</div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-800 font-sans custom-scrollbar">
-      
       <div className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm transition-opacity duration-300 ${isFilterSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsFilterSidebarOpen(false)} />
       <aside className={`fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl transform transition-transform duration-300 ${isFilterSidebarOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto border-l border-slate-200 p-6`}>
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
-             <div className="flex items-center gap-2"><div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-900/10"><Filter size={20} /></div><h3 className="font-black text-slate-800 uppercase italic tracking-tight">ตัวกรอง</h3></div>
-             <button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-          </div>
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100"><div className="flex items-center gap-2"><div className="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-900/10"><Filter size={20} /></div><h3 className="font-black text-slate-800 uppercase italic tracking-tight">ตัวกรอง</h3></div><button onClick={() => setIsFilterSidebarOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button></div>
           <div className="space-y-8">
              <button onClick={() => { setSelectedMonths([]); setSelectedSups([]); setSelectedAgents([]); setSelectedResults([]); setSelectedTypes([]); setSelectedTouchpoints([]); setActiveCell({ agent: null, resultType: null }); setActiveKpiFilter(null); }} className="w-full py-2.5 text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 uppercase tracking-widest transition-all">ล้างตัวกรองทั้งหมด</button>
              <FilterSection title="เดือน" items={availableMonths} selectedItems={selectedMonths} onToggle={(item) => handleToggleFilter(item, selectedMonths, setSelectedMonths)} onSelectAll={() => setSelectedMonths(availableMonths)} onClear={() => setSelectedMonths([])} />
-             {/* NEW V2.3: Add Touchpoint Filter Section */}
              <FilterSection title="Touchpoint (จุดสัมผัส)" items={availableTouchpoints} selectedItems={selectedTouchpoints} onToggle={(item) => handleToggleFilter(item, selectedTouchpoints, setSelectedTouchpoints)} onSelectAll={() => setSelectedTouchpoints(availableTouchpoints)} onClear={() => setSelectedTouchpoints([])} />
-             
              <FilterSection title="Supervisor" items={availableSups} selectedItems={selectedSups} onToggle={(item) => handleToggleFilter(item, selectedSups, setSelectedSups)} onSelectAll={() => setSelectedSups(availableSups)} onClear={() => setSelectedSups([])} />
              <FilterSection title="ประเภทงาน (AC / BC)" items={availableTypes} selectedItems={selectedTypes} onToggle={(item) => handleToggleFilter(item, selectedTypes, setSelectedTypes)} onSelectAll={() => setSelectedTypes(availableTypes)} onClear={() => setSelectedTypes([])} />
              <FilterSection title="พนักงาน (ID : ชื่อ)" items={availableAgents} selectedItems={selectedAgents} onToggle={(item) => handleToggleFilter(item, selectedAgents, setSelectedAgents)} onSelectAll={() => setSelectedAgents(availableAgents)} onClear={() => setSelectedAgents([])} maxH="max-h-60" />
@@ -640,88 +442,27 @@ const App = () => {
 
       <div className="max-w-7xl mx-auto space-y-6">
         <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-200">
-          <div className="flex items-center gap-6"><div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"><IntageLogo /></div>
-            <div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-indigo-500" />}</h1>
-              <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div> REAL-TIME CONNECTED: {data.length} รายการ</> : "OFFLINE"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div>
-            </div>
-          </div>
+          <div className="flex items-center gap-6"><div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner"><IntageLogo /></div><div><h1 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2 uppercase italic">QC REPORT 2026 {loading && <RefreshCw size={18} className="animate-spin text-indigo-500" />}</h1><div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 italic">{data.length > 0 ? <><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div> REAL-TIME CONNECTED: {data.length} รายการ</> : "OFFLINE"} {lastUpdated && <span className="ml-4 opacity-50"><Clock size={10} className="inline mr-1" />{lastUpdated}</span>}</div></div></div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* ปุ่มรีเฟรชข้อมูลใหม่ */}
-            <button 
-              onClick={() => fetchFromAppsScript(appsScriptUrl)} 
-              disabled={loading}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-indigo-500 hover:text-indigo-600 shadow-indigo-200/50'}`}
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'SYNC DATA...' : 'SYNC DATA'}
-            </button>
-
+            <button onClick={() => fetchFromAppsScript(appsScriptUrl)} disabled={loading} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${loading ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-indigo-500 hover:text-indigo-600 shadow-indigo-200/50'}`}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />{loading ? 'SYNC DATA...' : 'SYNC DATA'}</button>
             <button onClick={() => setIsFilterSidebarOpen(true)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black shadow-sm transition-all border ${selectedResults.length > 0 || selectedSups.length > 0 || selectedMonths.length > 0 || selectedAgents.length > 0 || selectedTypes.length > 0 || selectedTouchpoints.length > 0 ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-900/20' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'}`}><Filter size={16} /> ตัวกรอง</button>
             {userRole === 'Admin' && <button onClick={() => setShowSync(true)} className="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-2xl text-xs font-black hover:bg-slate-700 transition-all shadow-xl font-bold"><Settings size={14} /> ตั้งค่า</button>}
             <button onClick={() => setIsAuthenticated(false)} className="p-3 bg-slate-50 rounded-2xl hover:text-indigo-500 text-slate-400 transition-colors border border-slate-200"><User size={20} /></button>
           </div>
         </header>
 
-        {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
-                { 
-                  id: 'total',
-                  label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', 
-                  value: totalWorkByMonthOnly, 
-                  icon: FileText, 
-                  color: 'text-slate-800', 
-                  bg: 'bg-white border-slate-200',
-                  activeBg: 'bg-slate-100 ring-2 ring-slate-300'
-                },
-                { 
-                  id: 'audited',
-                  label: 'จำนวนที่ตรวจแล้ว (AC/BC)', 
-                  value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, 
-                  icon: Database, 
-                  color: 'text-indigo-600', 
-                  bg: 'bg-indigo-50 border-indigo-100',
-                  activeBg: 'bg-indigo-100 ring-2 ring-indigo-300'
-                },
-                { 
-                  id: 'pass',
-                  label: 'จำนวนผ่านเกณฑ์', 
-                  value: passCount, 
-                  icon: CheckCircle, 
-                  color: 'text-emerald-600', 
-                  bg: 'bg-emerald-50 border-emerald-100',
-                  activeBg: 'bg-emerald-100 ring-2 ring-emerald-300'
-                },
-                { 
-                  id: 'improve',
-                  label: 'ควรปรับปรุง', 
-                  value: baseFilteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, 
-                  icon: AlertTriangle, 
-                  color: 'text-amber-500', 
-                  bg: 'bg-amber-50 border-amber-100',
-                  activeBg: 'bg-amber-100 ring-2 ring-amber-300'
-                },
-                { 
-                  id: 'error',
-                  label: 'พบข้อผิดพลาด', 
-                  value: baseFilteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, 
-                  icon: XCircle, 
-                  color: 'text-rose-500', 
-                  bg: 'bg-rose-50 border-rose-100',
-                  activeBg: 'bg-rose-100 ring-2 ring-rose-300'
-                }
+                { id: 'total', label: 'จำนวนงานทั้งหมด (กรองแค่เดือน)', value: totalWorkByMonthOnly, icon: FileText, color: 'text-slate-800', bg: 'bg-white border-slate-200', activeBg: 'bg-slate-100 ring-2 ring-slate-300' },
+                { id: 'audited', label: 'จำนวนที่ตรวจแล้ว (AC/BC)', value: `${totalAuditedFiltered} (${totalWorkByMonthOnly > 0 ? ((totalAuditedFiltered / totalWorkByMonthOnly) * 100).toFixed(1) : 0}%)`, icon: Database, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100', activeBg: 'bg-indigo-100 ring-2 ring-indigo-300' },
+                { id: 'pass', label: 'จำนวนผ่านเกณฑ์', value: passCount, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100', activeBg: 'bg-emerald-100 ring-2 ring-emerald-300' },
+                { id: 'improve', label: 'ควรปรับปรุง', value: baseFilteredData.filter(d=>d.result.startsWith('ควรปรับปรุง')).length, icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-100', activeBg: 'bg-amber-100 ring-2 ring-amber-300' },
+                { id: 'error', label: 'พบข้อผิดพลาด', value: baseFilteredData.filter(d=>d.result.startsWith('พบข้อผิดพลาด')).length, icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-50 border-rose-100', activeBg: 'bg-rose-100 ring-2 ring-rose-300' }
             ].map((kpi) => {
                 const isActive = activeKpiFilter === kpi.id || (kpi.id === 'total' && activeKpiFilter === null);
-                // Total card special case: clicking it clears filter
                 const isTotal = kpi.id === 'total';
-                
                 return (
-                  <button 
-                    key={kpi.id} 
-                    onClick={() => handleKpiClick(isTotal ? null : kpi.id)}
-                    className={`text-left p-6 rounded-[2.5rem] border shadow-sm transition-all duration-200 active:scale-95 group relative overflow-hidden ${isActive && !isTotal ? kpi.activeBg : kpi.bg} ${!isActive ? 'hover:border-slate-300' : ''}`}
-                  >
+                  <button key={kpi.id} onClick={() => handleKpiClick(isTotal ? null : kpi.id)} className={`text-left p-6 rounded-[2.5rem] border shadow-sm transition-all duration-200 active:scale-95 group relative overflow-hidden ${isActive && !isTotal ? kpi.activeBg : kpi.bg} ${!isActive ? 'hover:border-slate-300' : ''}`}>
                     {isActive && !isTotal && <div className="absolute top-3 right-4 text-[10px] font-black uppercase text-white bg-slate-800 px-2 py-0.5 rounded-full flex items-center gap-1"><MousePointerClick size={10}/> Filtering</div>}
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 bg-white border border-slate-100 shadow-sm ${kpi.color}`}><kpi.icon size={16} /></div>
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</p>
@@ -731,7 +472,6 @@ const App = () => {
             })}
         </div>
 
-        {/* --- VISUAL INTELLIGENCE SECTION --- */}
         <div className="flex flex-col lg:flex-row gap-6">
             <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
                 <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><PieChart size={16} className="text-indigo-500" /> Case Composition Summary</h3>
@@ -745,51 +485,20 @@ const App = () => {
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">
-                    {chartData.map(c => (
-                        <div key={c.full} className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div>
-                            <span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span>
-                        </div>
-                    ))}
-                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-6">{chartData.map(c => (<div key={c.full} className="flex items-center gap-2"><div className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor: c.color}}></div><span className="text-[9px] text-slate-500 font-bold truncate uppercase">{c.name}</span></div>))}</div>
             </div>
 
-             {/* --- NEW: Monthly Performance Chart --- */}
              <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 flex-1 flex flex-col min-h-[300px]">
                 <h3 className="font-black text-slate-800 flex items-center gap-2 italic text-sm uppercase mb-6"><BarChart2 size={16} className="text-emerald-500" /> Monthly Audit Progress (%)</h3>
                 <div className="flex-1 w-full min-h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={monthlyPerformanceData}>
-                            <defs>
-                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#10B981" stopOpacity={1}/>
-                                    <stop offset="100%" stopColor="#059669" stopOpacity={0.6}/>
-                                </linearGradient>
-                            </defs>
+                            <defs><linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10B981" stopOpacity={1}/><stop offset="100%" stopColor="#059669" stopOpacity={0.6}/></linearGradient></defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                             <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                             <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} unit="%" />
-                            <Tooltip 
-                                cursor={{fill: '#f1f5f9', opacity: 0.8}}
-                                content={({ active, payload, label }) => {
-                                    if (active && payload && payload.length) {
-                                    return (
-                                        <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xl">
-                                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p>
-                                            <p className="text-emerald-600 text-lg font-black">{payload[0].value}%</p>
-                                            <p className="text-slate-500 text-[10px] font-bold">Audited: {payload[0].payload.audited} / {payload[0].payload.total}</p>
-                                        </div>
-                                    );
-                                    }
-                                    return null;
-                                }}
-                            />
-                            <Bar dataKey="percent" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500}>
-                                {monthlyPerformanceData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.percent >= 100 ? '#3b82f6' : 'url(#barGradient)'} />
-                                ))}
-                            </Bar>
+                            <Tooltip cursor={{fill: '#f1f5f9', opacity: 0.8}} content={({ active, payload, label }) => { if (active && payload && payload.length) { return (<div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xl"><p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</p><p className="text-emerald-600 text-lg font-black">{payload[0].value}%</p><p className="text-slate-500 text-[10px] font-bold">Audited: {payload[0].payload.audited} / {payload[0].payload.total}</p></div>); } return null; }} />
+                            <Bar dataKey="percent" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={40} animationDuration={1500}>{monthlyPerformanceData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.percent >= 100 ? '#3b82f6' : 'url(#barGradient)'} />))}</Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -840,7 +549,6 @@ const App = () => {
                             </td>
                         </tr>
                         ))}
-                        {/* --- NEW: GRAND TOTAL ROW (Light Theme) --- */}
                         <tr className="bg-slate-100 text-slate-800 font-black border-t-2 border-slate-300 sticky bottom-0 z-20 shadow-lg">
                             <td className="px-8 py-5 border-r border-slate-300 text-indigo-600 italic uppercase">GRAND TOTAL</td>
                             {RESULT_ORDER.map(type => {
@@ -848,24 +556,45 @@ const App = () => {
                                 const percent = totalSummary.total > 0 ? ((val / totalSummary.total) * 100).toFixed(1) : 0;
                                 return (
                                     <td key={type} className="px-4 py-5 text-center border-r border-slate-300">
-                                        <div className="flex flex-col items-center">
-                                            <span>{val}</span>
-                                            <span className="text-[9px] text-slate-500">({percent}%)</span>
-                                        </div>
+                                        <div className="flex flex-col items-center"><span>{val}</span><span className="text-[9px] text-slate-500">({percent}%)</span></div>
                                     </td>
                                 );
                             })}
-                            <td className="px-8 py-5 text-center border-l border-slate-300 text-indigo-600 bg-slate-200">
-                                <div className="flex flex-col items-center">
-                                    <span>{totalSummary.total}</span>
-                                    <span className="text-[9px] opacity-60">(100%)</span>
-                                </div>
-                            </td>
+                            <td className="px-8 py-5 text-center border-l border-slate-300 text-indigo-600 bg-slate-200"><div className="flex flex-col items-center"><span>{totalSummary.total}</span><span className="text-[9px] opacity-60">(100%)</span></div></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+
+        {/* --- NEW IDEA 2: Agent Performance Trend Chart (Shows when Agent is selected) --- */}
+        {activeCell.agent && selectedAgentTrendData.length > 0 && (
+            <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-200 animate-in slide-in-from-top-4 duration-500 scroll-mt-6">
+                 <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-black text-slate-800 flex items-center gap-3 italic text-lg uppercase tracking-tight">
+                        <TrendingUp size={24} className="text-indigo-500" /> 
+                        Performance Trend: <span className="text-indigo-600 border-b-2 border-indigo-200">{activeCell.agent}</span>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full"><div className="w-3 h-3 bg-indigo-500 rounded-sm"></div><span className="text-[10px] font-black text-indigo-800 uppercase">Total Cases</span></div>
+                        <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full"><div className="w-3 h-3 bg-emerald-500 rounded-full"></div><span className="text-[10px] font-black text-emerald-800 uppercase">Pass Rate %</span></div>
+                    </div>
+                 </div>
+                 <div className="w-full h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={selectedAgentTrendData} margin={{top: 20, right: 20, bottom: 20, left: 20}}>
+                            <CartesianGrid stroke="#f1f5f9" vertical={false} strokeDasharray="3 3"/>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11, fontWeight: 'bold'}} />
+                            <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11}} label={{ value: 'Total Cases', angle: -90, position: 'insideLeft', style: {textAnchor: 'middle', fill: '#cbd5e1', fontSize: 10, fontWeight: 'bold'} }} />
+                            <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#10B981', fontSize: 11, fontWeight: 'bold'}} unit="%" domain={[0, 100]} />
+                            <Tooltip contentStyle={{backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} cursor={{fill: '#f8fafc'}} />
+                            <Bar yAxisId="left" dataKey="total" name="จำนวนตรวจ (เคส)" fill="#818cf8" radius={[6, 6, 0, 0]} barSize={40} fillOpacity={0.8} />
+                            <Line yAxisId="right" type="monotone" dataKey="passRate" name="% ผ่านเกณฑ์" stroke="#10B981" strokeWidth={3} dot={{r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                 </div>
+            </div>
+        )}
 
         <div id="detail-section" className="bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden scroll-mt-6">
             <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -893,16 +622,9 @@ const App = () => {
                             <tr onClick={() => !isEditing && setExpandedCaseId(isExpanded ? null : item.id)} className={`transition-all group cursor-pointer ${isExpanded ? 'bg-indigo-50 shadow-inner' : 'hover:bg-slate-50'}`}>
                                 <td className="px-8 py-6 border-r border-slate-100">
                                     <div className="font-black text-slate-800">{item.date}</div>
-                                    {/* NEW V2.3: Date + Questionnaire + Touchpoint Display */}
                                     <div className="flex flex-wrap gap-2 mt-1">
-                                        <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">
-                                            <Hash size={10} className="text-indigo-400" />
-                                            <span className="text-[11px] font-black text-slate-500">{item.questionnaireNo}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 w-fit">
-                                            <MapPin size={10} className="text-indigo-500" />
-                                            <span className="text-[10px] font-black text-indigo-600">{item.touchpoint}</span>
-                                        </div>
+                                        <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit"><Hash size={10} className="text-indigo-400" /><span className="text-[11px] font-black text-slate-500">{item.questionnaireNo}</span></div>
+                                        <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 w-fit"><MapPin size={10} className="text-indigo-500" /><span className="text-[10px] font-black text-indigo-600">{item.touchpoint}</span></div>
                                     </div>
                                 </td>
                                 <td className="px-8 py-6 border-r border-slate-100"><div className="font-black text-slate-700 text-sm group-hover:text-indigo-600 transition-colors flex items-center gap-2">{item.agent} {isExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}</div><div className="text-[9px] text-slate-400 font-bold mt-0.5 italic uppercase font-sans tracking-wider">TYPE: {item.type} &bull; SUP: {item.supervisorFilter}</div></td>
@@ -937,34 +659,18 @@ const App = () => {
                                     <div className="mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-[2rem] shadow-inner">
                                         <div className="flex items-center gap-2 mb-4 text-indigo-600 font-black text-[10px] uppercase italic tracking-widest"><Info size={16} /> กำหนดประเภทงาน (AC / BC) & Supervisor (H)</div>
                                         <div className="flex flex-col md:flex-row gap-4">
-                                            {/* AC/BC Selection */}
                                             <div className="flex gap-2">
                                                 {['AC', 'BC'].map(t => (
-                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-900/40' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
-                                                        {t} MODE
-                                                    </button>
+                                                    <button key={t} onClick={() => setEditingCase({...editingCase, type: t})} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${editingCase.type === t ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-900/40' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t} MODE</button>
                                                 ))}
                                             </div>
-
-                                            {/* NEW: CATI Supervisor Input (Column H) - Dropdown */}
                                             <div className="flex-1 bg-white border border-slate-200 rounded-xl p-2 flex items-center gap-3 pl-4">
                                                 <UserPlus size={16} className="text-indigo-500"/>
                                                 <div className="flex-1 relative">
                                                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">CATI Supervisor (Column H)</p>
-                                                    <select 
-                                                        value={editingCase.supervisor || ''} 
-                                                        onChange={e=>setEditingCase({...editingCase, supervisor: e.target.value})} 
-                                                        className="w-full bg-transparent text-slate-800 text-xs font-bold outline-none appearance-none"
-                                                    >
-                                                        <option value="" className="text-slate-400">ระบุชื่อ Supervisor...</option>
-                                                        {SUPERVISOR_OPTIONS.map(opt => (
-                                                            <option key={opt} value={opt} className="text-slate-800">{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                    <ChevronDown size={12} className="absolute right-0 top-1/2 translate-y-0 text-slate-400 pointer-events-none" />
+                                                    <select value={editingCase.supervisor || ''} onChange={e=>setEditingCase({...editingCase, supervisor: e.target.value})} className="w-full bg-transparent text-slate-800 text-xs font-bold outline-none appearance-none"><option value="" className="text-slate-400">ระบุชื่อ Supervisor...</option>{SUPERVISOR_OPTIONS.map(opt => (<option key={opt} value={opt} className="text-slate-800">{opt}</option>))}</select><ChevronDown size={12} className="absolute right-0 top-1/2 translate-y-0 text-slate-400 pointer-events-none" />
                                                 </div>
                                             </div>
-
                                             {editingCase.type === "ยังไม่ได้ตรวจ" && <p className="text-rose-500 text-[10px] font-black uppercase self-center animate-pulse">*** กรุณาเลือก AC หรือ BC เพื่อบันทึกงาน</p>}
                                         </div>
                                     </div>
@@ -972,10 +678,7 @@ const App = () => {
 
                                 {item.audio && item.audio.includes('http') && (
                                     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-[2rem] flex items-center justify-between shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl animate-pulse"><PlayCircle size={20} /></div>
-                                            <div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Audio Recording File</p><p className="text-xs font-black text-slate-700">ไฟล์เสียงบันทึกการสัมภาษณ์</p></div>
-                                        </div>
+                                        <div className="flex items-center gap-3"><div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl animate-pulse"><PlayCircle size={20} /></div><div><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Audio Recording File</p><p className="text-xs font-black text-slate-700">ไฟล์เสียงบันทึกการสัมภาษณ์</p></div></div>
                                         <a href={item.audio} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 transition-all shadow-lg shadow-indigo-900/20"><ExternalLink size={14} /> OPEN PLAYER</a>
                                     </div>
                                 )}
@@ -984,14 +687,7 @@ const App = () => {
                                     {isEditing ? (<div className="relative"><select className="w-full p-4 bg-white border border-indigo-200 rounded-2xl text-[11px] font-black text-slate-800 focus:ring-2 focus:ring-indigo-600 outline-none appearance-none shadow-sm" value={editingCase.result} onChange={e => setEditingCase({...editingCase, result: e.target.value})}>{RESULT_ORDER.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /></div>) : (<p className="text-sm font-black italic text-slate-600 bg-white p-4 rounded-xl border border-slate-200 leading-relaxed shadow-sm">{item.result}</p>)}
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                                    {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (
-                                    <div key={eIdx} className={`bg-white border p-3 rounded-2xl transition-all ${isEditing ? 'border-slate-200 opacity-60 cursor-not-allowed' : 'border-slate-200 shadow-sm'}`}>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p>
-                                        <div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>
-                                            {SCORE_LABELS[evalItem.value] || evalItem.value}
-                                        </div>
-                                    </div>
-                                    ))}
+                                    {(isEditing ? editingCase : item).evaluations.map((evalItem, eIdx) => (<div key={eIdx} className={`bg-white border p-3 rounded-2xl transition-all ${isEditing ? 'border-slate-200 opacity-60 cursor-not-allowed' : 'border-slate-200 shadow-sm'}`}><p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-2 truncate" title={evalItem.label}>{evalItem.label}</p><div className={`text-sm font-black italic tracking-widest ${evalItem.value === '5' || evalItem.value === '4' ? 'text-emerald-500' : (evalItem.value === '1' || evalItem.value === '2') ? 'text-rose-500' : 'text-slate-300'}`}>{SCORE_LABELS[evalItem.value] || evalItem.value}</div></div>))}
                                 </div>
                                 <div className="mt-8">
                                     <p className="text-[10px] font-black text-indigo-500 uppercase mb-2 italic tracking-widest flex items-center gap-2"><MessageSquare size={12}/> QC Full Comment (Column N)</p>
@@ -1015,10 +711,7 @@ const App = () => {
                 <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
                 <div className="flex items-center justify-between mb-10"><h3 className="text-xl font-black flex items-center gap-3 text-slate-800 uppercase italic tracking-tight">{error ? 'Connection Error' : 'ตั้งค่าระบบ'}</h3>{data.length > 0 && <button onClick={() => {setShowSync(false); setError(null);}} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={28} /></button>}</div>
                 <div className="space-y-6">
-                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-4">
-                      <p className="text-xs text-indigo-600 font-bold mb-1 flex items-center gap-2"><Zap size={14}/> SYSTEM UPGRADE (JSON API MODE)</p>
-                      <p className="text-[10px] text-slate-500">ระบบได้รับการอัปเกรดเป็นโหมดประสิทธิภาพสูง กรุณาใส่ Web App URL ของ Apps Script ลงในช่องด้านล่างเพียงช่องเดียว</p>
-                    </div>
+                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl mb-4"><p className="text-xs text-indigo-600 font-bold mb-1 flex items-center gap-2"><Zap size={14}/> SYSTEM UPGRADE (JSON API MODE)</p><p className="text-[10px] text-slate-500">ระบบได้รับการอัปเกรดเป็นโหมดประสิทธิภาพสูง กรุณาใส่ Web App URL ของ Apps Script ลงในช่องด้านล่างเพียงช่องเดียว</p></div>
                     <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 italic">Apps Script Web App URL (Read & Write)</label><input type="text" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner" value={appsScriptUrl} onChange={e=>{setAppsScriptUrl(e.target.value); localStorage.setItem('apps_script_url', e.target.value);}} /></div>
                     <div className="flex gap-4 pt-4"><button onClick={() => fetchFromAppsScript(appsScriptUrl)} disabled={loading || !appsScriptUrl} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2.5rem] font-black uppercase shadow-xl shadow-indigo-200 text-sm tracking-widest italic flex items-center justify-center gap-2 transition-all">{loading ? <RefreshCw className="animate-spin" size={18}/> : <RefreshCw size={18}/>} CONNECT & SYNC</button></div>
                     {error && <p className="text-center text-[10px] text-rose-500 font-black mt-2 uppercase italic animate-pulse">{error}</p>}
